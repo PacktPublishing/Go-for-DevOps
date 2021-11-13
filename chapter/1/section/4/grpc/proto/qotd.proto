@@ -1,0 +1,17 @@
+syntax = "proto3";
+package qotd;
+
+option go_package = "github.com/[repo]/proto/qotd";
+
+message GetReq {
+	string author = 1;
+}
+
+message GetResp {
+	string author = 1;
+	string quote = 2;
+}
+
+service QOTD {
+   rpc GetQOTD(GetReq) returns (GetResp) {};
+}

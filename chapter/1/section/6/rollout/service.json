@@ -1,0 +1,18 @@
+{
+    "Concurrency": 2,
+    "CanaryNum": 1,
+    "MaxFailures": 2,
+    "Src": "/home/[user]/rollout/webserver",
+    "Dst": "/home/[user]/webserver",
+    "LB": "10.0.0.4:8081",
+    "Pattern": "/",
+    "Backends": [
+            "10.0.0.5",
+            "10.0.0.6",
+            "10.0.0.7",
+            "10.0.0.8",
+            "10.0.0.9"
+    ],
+    "BackendUser": "azureuser",
+    "BinaryPort": 8082
+}
