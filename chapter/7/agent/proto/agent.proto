@@ -1,0 +1,47 @@
+syntax = "proto3";
+package system.agent;
+
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/6/agent/proto/agent";
+
+message InstallReq {
+	string name = 1;
+	bytes package = 2;
+	string binary = 3;
+	repeated string args = 4;
+}
+
+message InstallResp {}
+
+message RemoveReq {
+	string name = 1;
+}
+
+message RemoveResp {}
+
+message CPUPerfs {
+	int32 resolutionSecs = 1;
+	int64 unix_time_nano = 2;
+	repeated CPUPerf cpu = 3;
+}
+
+message CPUPerf {
+	string id = 1;
+	int32 user = 2;
+	int32 system = 3;
+	int32 idle = 4;
+	int32 io_wait = 5;
+	int32 irq = 6;
+}
+
+message MemPerf {
+	int32 resolutionSecs = 1;
+	int64 unix_time_nano = 2;
+	int32 total = 3;
+	int32 free = 4;
+	int32 avail = 5;
+}
+
+service Agent {
+   rpc Install(InstallReq) returns (InstallResp) {};
+   rpc Remove(RemoveReq) returns (RemoveResp) {};
+}

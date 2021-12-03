@@ -1,0 +1,149 @@
+syntax = "proto3";
+package rollout.lb;
+
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/6/rollout/lb/proto/lb";
+
+// PoolType indicates what type of pool to use. This influences
+// how the pool distributes its workload.
+enum PoolType {
+	// This indicates an error by the user.
+	PT_UNKNOWN = 0;
+	// The power of 2 choices selection pool.
+	PT_P2C = 1;
+}
+
+enum PoolStatus {
+	// This indicates an error by the developers.
+	PS_UNKNOWN = 0;
+	// The pool has all its configured backends working.
+	PS_FULL = 1;
+	// The pool has no configured backends.
+	PS_EMPTY = 2;
+	// The pool has one or more configured backends not working.
+	PS_DEGRADED = 3;
+}
+
+// BackendStatus details the status of a backend.
+enum BackendStatus {
+	// This indicates an error by the developers.
+	BS_UNKNOWN = 0;
+	// The node is healthy according to its health checks.
+	BS_HEALTHY = 1;
+	// The node is sick according to its health checks.
+	BS_SICK = 2;
+}
+
+message HealthChecks {
+	repeated HealthCheck health_checks = 1;
+	int32 interval_secs = 2;
+}
+
+message HealthCheck {
+	oneof health_check {
+		StatusCheck status_check = 1;
+	}
+}
+
+// StatusCheck is a check against a URL path. That path must
+// emit in its body one of the healthy_values or it fails.
+message StatusCheck {
+	string url_path = 1;
+	repeated string healthy_values = 2;
+}
+
+message Backend {
+	oneof backend {
+		IPBackend ip_backend = 1;
+	}
+}
+
+// IPBackend provides a Backend that has its endpoint as an ip:port.
+message IPBackend {
+	// The IP(v4 or v6) to use as the host.
+	string ip = 1;
+	// The port number to connect on.
+	int32 port = 2;
+	// The url_path to forward to. Generally this is empty.
+	string url_path = 3;
+}
+
+// PoolHealth details the health status of a pool.
+message PoolHealth {
+	// The status of the pool.
+	PoolStatus status = 1;
+	// The pool's backend health status. This can contain all backends
+	// or only sick/healthy backends, depending on the request.
+	repeated BackendHealth backends = 2;
+}
+
+// BackendHealth details the health status of a backend.
+message BackendHealth {
+	Backend backend = 1;
+	BackendStatus status = 2;
+}
+
+
+// AddPoolReq requests to create a pool for handling requests.
+message AddPoolReq {
+	// The URL pattern to direct traffic too.
+	string pattern = 1;
+	// The type of traffic distribution pool to use.
+	PoolType pool_type = 2;
+	// Health checks to against backends.
+	HealthChecks health_checks = 4;
+}
+
+// AddPoolResp is the response to adding a pool.
+message AddPoolResp {}
+
+// RemovePoolReq is used to remove a pool by its pattern.
+message RemovePoolReq {
+	// Pattern is the pattern to remove.
+	string pattern = 1;
+}
+
+// RemovePoolResp is the response to removing a pool.
+message RemovePoolResp {}
+
+// AddBackendReq adds a backend to a pool.
+message AddBackendReq {
+	// The pattern to add a backend to.
+	string pattern = 1;
+	// The backend to add to the pool.
+	Backend backend = 2;
+}
+
+message AddBackendResp {}
+
+// RemoveBackendReq is used to remove a Backend from a Pool.
+message RemoveBackendReq {
+	// The pool pattern to remove the backend from.
+	string pattern = 1;
+	// The backend to remove from the pool.
+	Backend backend = 2;
+}
+
+// RemoveBackendResp is the response to removing a Backend.
+message RemoveBackendResp {}
+
+// PoolHealthReq is a request to get the health of a pool.
+message PoolHealthReq {
+	// Pattern is the pool pattern you are getting health for.
+	string pattern = 1;
+	// If set to true, will return the backends that are healthy.
+	bool healthy = 3;
+	// If set to true, will return backends that are sick.
+	bool sick = 4;
+}
+
+message PoolHealthResp {
+	PoolHealth health = 1;
+}
+
+service LoadBalancer {
+	rpc AddPool(AddPoolReq) returns (AddPoolResp) {};
+	rpc RemovePool(RemovePoolReq) returns (RemovePoolResp) {};
+	rpc AddBackend(AddBackendReq) returns (AddBackendResp) {};
+	rpc RemoveBackend(RemoveBackendReq) returns (RemoveBackendResp) {};
+	rpc PoolHealth(PoolHealthReq) returns (PoolHealthResp) {};
+}
