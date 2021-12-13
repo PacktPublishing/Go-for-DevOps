@@ -1,0 +1,38 @@
+name: Tweeter Action
+author: DevOps for Go
+description: Simple action to send a tweet via an GitHub Action.
+inputs:
+  message:
+    description: 'message you want to tweet'
+    required: true
+  apiKey:
+    description: 'api key for Twitter api'
+    required: true
+  apiKeySecret:
+    description: 'api key secret for Twitter api'
+    required: true
+  accessToken:
+    description: 'access token for Twitter api'
+    required: true
+  accessTokenSecret:
+    description: 'access token secret for Twitter api'
+    required: true
+outputs:
+  errorMessage:
+    description: 'if something went wrong, the error message'
+  sentMessage:
+    description: 'message sent to Twitter'
+runs:
+  using: docker
+  image: docker://ghcr.io/PacktPublishing/tweeter:1.0.0
+  args:
+    - --message
+    - "${{ inputs.message }}"
+    - --apiKey
+    - ${{ inputs.apiKey }}
+    - --apiKeySecret
+    - ${{ inputs.apiKeySecret }}
+    - --accessToken
+    - ${{ inputs.accessToken }}
+    - --accessTokenSecret
+    - ${{ inputs.accessTokenSecret }}
