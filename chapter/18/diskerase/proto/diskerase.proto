@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package diskerase;
+
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto/diskerase";
+
+message Block {
+	int32 rate_limit = 1;
+	repeated Job jobs = 2;
+}
+
+message Job {
+	string name = 1;
+	map<string, string> args = 2;
+}
+
+message WorkReq {
+	string name = 1;
+	repeated Block blocks = 2;
+}
+
+message WorkResp {
+	string id = 1;
+}
+
+message StatusReq {
+	string id = 1;
+}
+
+message StatusResp {
+	bool completed = 1;
+	repeated string errors = 2;
+}
+
+message ExecReq {
+	string id;
+}
+
+message ExecResp {}
+
+service Workflow {
+	rpc Submit(WorkReq) returns (WorkResp) {};
+	rpc Exec(ExecReq) returns (ExecResp) {};
+	rpc Status(StatusReq) returns (StatusResp) {};
+}

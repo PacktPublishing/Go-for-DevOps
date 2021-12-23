@@ -1,0 +1,36 @@
+{
+	"Name": "SateliteDiskErase",
+	"Policies": [
+		{
+			"Name": "restrictJobTypes",
+			"Settings": {
+				"AllowedJobs": [
+				        "JTValidateDecom",
+        				"JTDiskErase",
+        				"JTSleep",
+        				"JTGetTokenFromBucket"
+				]
+			}
+		},
+		{
+			"Name": "sameArgs",
+			"Settings": {
+				"Jobs": {
+					"JTDiskErase": [
+						"Site"
+					]
+				}
+			}
+		},
+		{
+			"Name": "startOrEnd",
+			"Settings": {
+				"JobType": "JTGetTokenFromBucket",
+				"MustArgs": {
+					"Bucket": "diskEraseSatellite"
+				},
+				"Start": true
+			}
+		}
+	]
+}
