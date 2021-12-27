@@ -1,3 +1,20 @@
+/*
+Package executor executes all the work in the engine. 
+
+To create a Work object, simply:
+	work := executor.New(req, status}
+
+After creating a Work object, validate it:
+	if err := work.Validate(); err !=nil {
+		// Do something
+	}
+
+To run the Work object, do:
+	ch := work.Run()
+
+Once Run() returns, the pb.Status object passed will contain the results of running the WorkReq.
+
+*/
 package executor
 
 import (
@@ -16,91 +33,182 @@ import (
 )
 
 // Work is an executor for executing a WorkReq received by the server.
-type Work struct{}
+type Work struct{
+	req *pb.WorkReq
 
-// Run validates that a WorkReq is correct and passed policy, then executes it. If we have
-// no errors, this will return nil and not an empty slice.
-func (w *Work) Run(ctx context.Context, req *pb.WorkReq) []error {
-	if err := w.validate(ctx, req); err != nil {
-		return []error{err}
+	mu sync.Mutex
+	status *pb.StatusResp
+	ch chan *pb.StatusResp
+}
+
+// New is the constructor for Work.
+func New(req *pb.WorkReq, status *pb.StatusResp) *Work {
+	return &Work{
+		req: req,
+		status: status,
+		ch: make(chan *pb.StatusResp),
 	}
+}
 
-	errCh := make(chan error, 1)
-	var errs []error
-
-	// This collects errors that on our our concurrent jobs reports. If the error is fatal
-	// it stops the other jobs.
-	errDone := make(chan struct{})
+// Run validates that a WorkReq is correct and passed policy, then executes it.
+func (w *Work) Run(ctx context.Context) chan *pb.StatusResp {
 	go func() {
-		defer close(errDone)
-		noFatal := false
-		cancelled := false
-		for err := range errCh {
-			// We don't need to have a bunch of cancelled errors or any cancelled
-			// errors if we recieved a fatal error that cancelled the jobs.
-			if errors.Is(err, context.Canceled) {
-				if noFatal || cancelled {
-					continue
-				}
-				cancelled = true
-			}
-			errs = append(errs, err)
+		defer close(w.ch)
 
-			if jobs.IsFatal(err) {
-				noFatal = true
+		esCh, cancelES := es.Data.Subscribe(w.req.Name)
+		defer cancelES()
+		if <-esCh != es.Go {
+			w.status.Status = pb.StatusFailed
+			w.status.WasEsStopped = true
+			return
+		}
+
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+
+		// If we get an emergency stop, cancel our context.
+		// If the context gets cancelled, then just exit.
+		go func() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-esCh:
+				cancel()
 			}
+		}()
+
+		w.setWorkStatus(pb.Status_StatusRunning)
+
+		// Loop through each block one at a time and execute the Jobs located in them
+		// at the rate limit defined for the block.
+		for _, block := range w.req.Blocks {
+			if ctx.Err() != nil {
+				break
+			}
+			
+			w.runJobs(ctx, block)
+		}
+		
+		failed = false
+		for _, block := range w.status.Blocks {
+			if block.Status == pb.Status_StatusFailed {
+				failed = true
+				w.setWorkStatus(pb.Status_StatusFailed)
+			}
+		}
+		if !failed {
+			w.setWorkStatus(pb.Status_StatusCompleted)
 		}
 	}()
 
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-
-	// Loop through each block one at a time and execute the Jobs located in them
-	// at the rate limit defined for the block.
-	wg := sync.WaitGroup{}
-	for _, block := range req.Blocks {
-		// Setup our rate limiter.
-		limit := block.RateLimit
-		if limit < 1 {
-			limit = 1
-		}
-		rateLimiter := make(chan struct{}, int(limit))
-		for _, job := range block.Jobs {
-			rateLimiter <- struct{}{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				defer func() { <-rateLimiter }()
-
-				j, err := jobs.GetJob(job.Name)
-				if err != nil {
-					cancel()
-					errCh <- jobs.Fatalf("a Job(%s) passed validation but when ran could not be found, bug?", job.Name)
-				}
-				err = j.Run(ctx, job)
-				if err != nil {
-					if jobs.IsFatal(err) {
-						cancel()
-					}
-					errCh <- err
-				}
-			}()
-		}
-	}
-
-	// Wait for our Jobs to finish executing.
-	wg.Wait()
-	// No more jobs to report errors, so tell our error collector we are done.
-	close(errCh)
-	// Wait for error collection to be done.
-	<-errDone
-	// Return any errors we have. If we have none, this will be nil.
-	return errs
+	return ch
 }
 
-// Validate that a WorkReq is valid. This will check that basic values are set correctly
+func (w *Work) setWorkStatus(status *pb.Status) {
+	w.mu.Lock()
+	w.status.Status = status
+	w.sendStatus(w.status)
+	w.mu.Unlock()
+}
+
+func (w *Work) setBlockStatus(block *pb.BlockStatus, status *pb.Status) {
+	w.mu.Lock()
+	block.Status = status
+	w.sendStatus(w.status)
+	w.mu.Unlock()
+}
+
+func (w *Work) setJobStatus(job *pb.JobStatus, status *pb.Status, err string) {
+	w.mu.Lock()
+	job.Status = status
+	job.Error = err
+	w.sendStatus(w.status)
+	w.mu.Unlock()
+}
+
+// sendStatus sends the status of the WorkReq on our output channel. If the channel
+// is currently blocked with another status update, it removes that update for the newer one.
+func (w *Work) sendStatus(status *pb.Status) {
+	// We clone our status to prevent any concurrent access issues once the lock around
+	// sendStatus is released.
+	status = proto.Clone(status).(*pb.Status)
+	for {
+		select{
+		case w.ch <-status:
+			return
+		default:
+			select{
+			case <-w.ch:
+			default:
+			}
+		}
+	}
+}
+
+func (w *Work) runJobs(ctx context.Context, block *pb.Block, blockStatus *pb.BlockStatus) {
+	// Setup our rate limiter.
+	limit := block.RateLimit
+	if limit < 1 {
+		limit = 1
+	}
+	rateLimiter := make(chan struct{}, int(limit))
+
+	w.setBlockStatus(blockStatus, pb.Status_StatusRunning)
+
+	// Execute our Jobs.
+	wg := sync.WaitGroup{}
+	for i, job := range block.Jobs {
+		i := i
+		job := job
+
+		select {
+		case rateLimiter <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-rateLimiter }()
+
+			js := blockStatus.Jobs[i]
+			j, err := jobs.GetJob(job.Name)
+			if err != nil {
+				cancel()
+				w.setJobStatus(js, pb.Status_StatusFailed,fmt.Sprintf("a Job(%s) passed validation but when ran could not be found, bug?", job.Name))
+				return
+			}
+
+			err = j.Run(ctx, job)
+			if err != nil {
+				if jobs.IsFatal(err) {
+					cancel()
+				}
+				w.setJobStatus(js, pb.Status_StatusFailed, err.Error())
+				return
+			}
+
+			w.setJobStatus(js, pb.Status_StatusCompleted, "")
+		}()
+	}
+
+	wg.Wait()
+
+	// If any Job failed, the block failed.
+	for i, job := range block.Jobs {
+		if job.Status == pb.Status_StatusFailed {
+			w.setBlockStatus(blockStatus, pb.Status_StatusFailed)
+			return
+		}
+	}
+	w.setBlockStatus(blockStatus, pb.Status_StatusCompleted)
+}
+
+// Validate validates that a WorkReq is valid. This will check that basic values are set correctly
 // and run all policies for this Workflow.
-func (w *Work) Validate(ctx context.Context, req *pb.WorkReq) error {
+func Validate(ctx context.Context, req *pb.WorkReq) error {
 	for blockNum, b := range req.Blocks {
 		if len(b.Jobs) == 0 {
 			return fmt.Errorf("Block(%d) had 0 jobs", blockNum)

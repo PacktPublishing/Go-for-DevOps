@@ -20,8 +20,8 @@ import (
 var policies = map[string]registration{}
 
 type registration struct {
-	Policy Policy
-	Settings Settings
+	policy Policy
+	settings Settings
 }
 
 // Setting holds a struct that is used to hold the Policy settings that are invoked.
@@ -31,7 +31,8 @@ type Settings interface{
 	Validate() error
 }
 
-// Register registers a policy by name. 
+// Register registers a policy by name with an empty Settings that will be copied
+// to provide the Settings we will read out of the config file.
 func Register(name string, p Policy, s Settings) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -51,7 +52,7 @@ func Register(name string, p Policy, s Settings) {
 		panic(fmt.Sprintf("cannot register a policy(%s) with settings that are not a struct", name))
 	}
 	log.Println("Registered Policy: ", name)
-	policies[name] = registration{Policy: p, Settings: s}
+	policies[name] = registration{policy: p, settings: s}
 }
 
 // GetSettings fetches the Settings for a named Policy.

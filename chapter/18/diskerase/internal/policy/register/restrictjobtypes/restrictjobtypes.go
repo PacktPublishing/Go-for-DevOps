@@ -24,22 +24,25 @@ func init() {
 // Settings provides settings for a specific implementation of our Policy.
 type Settings struct {
 	AllowedJobs []string
-
-	hash map[pb.JobType]bool
 }
 
-// compile returns a copy of Settings that looks up all allowed jobs in the proto
-// and creates a hash for checking if a JobType is allowed.
-func (s Settings) compile() (Settings, error) {
-	s.hash = map[pb.JobType]bool{}
+// Validate implements policy.Settings.Validate().
+func (s Settings) Validate() error {
 	for _, n := range s.AllowedJobs {
-		jt, ok := pb.JobType_value[n]
-		if !ok {
-			return s, fmt.Errorf("allowed job(%s) is not defined in the proto")
+		_, err := jobs.GetJob()
+		if err != nil {
+			return fmt.Errorf("allowed job(%s) is not defined in the proto")
 		}
-		s.hash[pb.JobType(jt)] = true
+	return nil
+}
+
+func (s Settings) allowed(name string) bool {
+	for _, jn := range s.AllowedJobs {
+		if jn == name {
+			return true
+		}
 	}
-	return s, nil
+	return false
 }
 
 // Policy implements policy.Policy.
@@ -51,17 +54,12 @@ func New() (Policy, error) {
 }
 
 // Run implements Policy.Run().
-func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings interface{}) error {
+func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings policy.Settings) error {
 	const errMsg = "policy(%s): block(%d)/job(%d) is a type(%s) that is not allowed"
 
 	s, ok := settings.(Settings)
 	if !ok {
 		return fmt.Errorf("settings were not valid")
-	}
-	var err error
-	s, err = s.compile()
-	if err != nil {
-		return err
 	}
 
 	for blockNum, block := range req.Blocks {
@@ -70,8 +68,8 @@ func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings 
 				return ctx.Err()
 			}
 
-			if !s.hash[job.Type] {
-				return fmt.Errorf(errMsg, blockNum, jobNum, name, pb.JobType_name[int32(job.Type)])
+			if !s.allowed(job.Name) {
+				return fmt.Errorf(errMsg, blockNum, jobNum, job.name)
 			}
 		}
 	}

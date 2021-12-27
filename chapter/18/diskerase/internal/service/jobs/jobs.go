@@ -1,3 +1,16 @@
+/*
+Package jobs defines our Job type, which executes work and a registration system for registering
+Jobs.
+
+Packages that contain jobs can register themselves by doing:
+	func init() {
+		jobs.Register("name", job)
+	}
+If there is a duplicate name, this will panic.
+
+Fetching a Job is simply:
+	GetJob(jt string) (Job, error)
+*/
 package jobs
 
 import (
@@ -26,10 +39,10 @@ func Register(name string, job Job) {
 }
 
 // GetJob returns a Job by its type from the registry.
-func GetJob(jt string) (Job, error) {
-	j, ok := jobs[jt]
+func GetJob(name string) (Job, error) {
+	j, ok := jobs[name]
 	if !ok {
-		return nil, fmt.Errorf("Job(%v) not found", jt)
+		return nil, fmt.Errorf("Job(%v) not found", name)
 	}
 	return j, nil
 }
@@ -51,8 +64,8 @@ func IsFatal(err error) bool {
 
 // Error() implements error.Error().
 func (f FatalErr) Error() string {
-	if f.err != nil {
-
+	if f.err == nil {
+		return ""
 	}
 	return f.err.Error()
 }

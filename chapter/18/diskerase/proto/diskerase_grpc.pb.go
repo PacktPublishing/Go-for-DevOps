@@ -18,7 +18,12 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WorkflowClient interface {
+	// Submit the work to the server. This will not execute the work, it will
+	// simply verify it against policy and store it for execution.
 	Submit(ctx context.Context, in *WorkReq, opts ...grpc.CallOption) (*WorkResp, error)
+	// Tell the service to execute a WorkReq submitted earlier.
+	Exec(ctx context.Context, in *ExecReq, opts ...grpc.CallOption) (*ExecResp, error)
+	// Get the status of a WorkReq.
 	Status(ctx context.Context, in *StatusReq, opts ...grpc.CallOption) (*StatusResp, error)
 }
 
@@ -39,6 +44,15 @@ func (c *workflowClient) Submit(ctx context.Context, in *WorkReq, opts ...grpc.C
 	return out, nil
 }
 
+func (c *workflowClient) Exec(ctx context.Context, in *ExecReq, opts ...grpc.CallOption) (*ExecResp, error) {
+	out := new(ExecResp)
+	err := c.cc.Invoke(ctx, "/diskerase.Workflow/Exec", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *workflowClient) Status(ctx context.Context, in *StatusReq, opts ...grpc.CallOption) (*StatusResp, error) {
 	out := new(StatusResp)
 	err := c.cc.Invoke(ctx, "/diskerase.Workflow/Status", in, out, opts...)
@@ -52,7 +66,12 @@ func (c *workflowClient) Status(ctx context.Context, in *StatusReq, opts ...grpc
 // All implementations must embed UnimplementedWorkflowServer
 // for forward compatibility
 type WorkflowServer interface {
+	// Submit the work to the server. This will not execute the work, it will
+	// simply verify it against policy and store it for execution.
 	Submit(context.Context, *WorkReq) (*WorkResp, error)
+	// Tell the service to execute a WorkReq submitted earlier.
+	Exec(context.Context, *ExecReq) (*ExecResp, error)
+	// Get the status of a WorkReq.
 	Status(context.Context, *StatusReq) (*StatusResp, error)
 	mustEmbedUnimplementedWorkflowServer()
 }
@@ -63,6 +82,9 @@ type UnimplementedWorkflowServer struct {
 
 func (UnimplementedWorkflowServer) Submit(context.Context, *WorkReq) (*WorkResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Submit not implemented")
+}
+func (UnimplementedWorkflowServer) Exec(context.Context, *ExecReq) (*ExecResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Exec not implemented")
 }
 func (UnimplementedWorkflowServer) Status(context.Context, *StatusReq) (*StatusResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
@@ -98,6 +120,24 @@ func _Workflow_Submit_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Workflow_Exec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServer).Exec(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/diskerase.Workflow/Exec",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServer).Exec(ctx, req.(*ExecReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Workflow_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StatusReq)
 	if err := dec(in); err != nil {
@@ -126,6 +166,10 @@ var Workflow_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Submit",
 			Handler:    _Workflow_Submit_Handler,
+		},
+		{
+			MethodName: "Exec",
+			Handler:    _Workflow_Exec_Handler,
 		},
 		{
 			MethodName: "Status",
