@@ -211,6 +211,7 @@ func generateWork(sat string) (*pb.WorkReq, error) {
 	// If we have a block not committed, commit it. Dont' put a sleep afterwards.
 	if len(block.Jobs) != 0 {
 		block.Desc = getBlockDesc(block)
+		block.RateLimit = 5
 		wf.Blocks = append(wf.Blocks, block)
 	}
 	return wf, nil

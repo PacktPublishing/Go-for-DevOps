@@ -1,38 +1,44 @@
 # A Generic Workflow Service
 
+![Diskerase runthrough](docs/images/client_runthrough.gif)
+(Our diskerase client running a workflow on the server)
+
 ## Introduction
 
 The example code layed out in this directory represents a generic workflow execution service. This service receives a protocol buffer to a gRPC service that represents the type of work we want to do (a WorkReq).
 
 This is another example of separating the work to be done into two parts:
-* Creation of the work in one program
-* Execution of work
 
-This allows centralization of all work done into a single system that can have security, emergency systems, policies, ... in a single location.  Things that create work can have their own logic and tests. This benefits with:
+* Creation of the work in one program
+* Execution of work in another
+
+This allows centralization of all work done into a single system that can have security, emergency stop capabilities, policies, ... in a single location.  Clients that create work can have their own logic and tests. This benefits with:
 
 * Central place to create reusable components
 * Central policy enforcement
 * One system authorized for changes instead of multiple
-* Work logic is separate system from work execution
-* One place to stop bad things when the are occuring
+* Work logic is a separate system from work execution
+* One place to stop bad things when they are occuring
 
 The work is defined in `Block`s with one block executed at at time. Inside the `Block`s are `Job`s, which are the actions that are taken. Those will be executed concurrently within some rate limit you define for the `Block`.
 
 Each `WorkReq` that is sent to the service is checked against a set of policies. If no policies are defined, the `WorkReq` is rejected. If the `WorkReq` violates a policy, it is rejected. Policies can be used to sanity check a `WorkReq`.
 
-Once a `WorkReq` is received, a unique ID is generated and returned to the client. To execute that `WorkReq`, a second call to the server is made to tell it to execute.
+Once a `WorkReq` is received, a unique ID is generated and returned to the client. To execute that `WorkReq`, a second call to the server is made.
 
-The server provides an RPC endoint to recover the status of the `WorkReq`.
+The server provides an RPC endoint to recover the status of the `WorkReq` for watching workflows execute.
 
 `Job`s and `Policies` can be added to the system to expand its capabilities.
 
-We include some sample data that is used to represents "sites", or places where machines are located.  We also include data that represents "machines" at those sites. These obey some naming conventions and I have included the generators I used to make this fake data.  These stand in for what would probably be database or services that would hold this data.
+We include some sample data that is used to represents "sites", or places where machines are located.  We also include data that represents "machines" at those sites. These obey some naming conventions and I have included the generators I used to make this fake data.  These stand in for what would probably be a database or services that would hold authoritative information.
 
-Finally I include some clients that build `WorkReq` protocol buffers and call the service. You can use these to tests that policies such as the token bucket work. You can alter these to try to defy the policies on the server.
+Finally I include a client that build `WorkReq` protocol buffers and call the service for a sample satellite disk erasure. You can use this to test that policies such as the token bucket work. You can alter these to try to defy the policies on the server.
 
 ## What this isn't
 
-This is an example of a generic workflow system to demonstrate a bunch of concepts. This isn't a production quality service. If it has tests, they are not comprehensive. Unfortunately I have another full time job, so testing suffered for these book examples (something I would not do in my real job. Tests, tests and more tests!).
+This is an example of a generic workflow system to demonstrate concepts from our chapter on "Designing for Chaos". 
+
+This isn't a production quality service. If it has tests, they are not comprehensive. Unfortunately I have another full time job, so testing suffered for these book examples (something I would not do in my real job. Tests, tests and more tests!).
 
 Other things that make it non-production quality:
 
@@ -49,7 +55,7 @@ Other things that make it non-production quality:
 
 The one example workflow I put in here is a diskerase for satellite datacenters. The `diskErase` `Job` isn't real, it just sleeps. The other jobs are simply looking at files representing information about fake sites and machines. These jobs could be made real, but for this demo I didn't want to actually mutate anything real.
 
-You could turn this into a real system, but it would need some more bells and whistles.  This is a very lightweight version of a system I developed at Google. That service could handle service failures, restarts, horizontally scaled and lots of helpers... 
+You could turn this into a real system, but it would need some more bells and whistles.  This is a very lightweight version of a system I developed at Google. That service could handle service failures, restarts, horizontally scale and lots had lots of helpful packages... 
 
 This is not that system.
 
