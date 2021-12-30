@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package diskerase;
+
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto/diskerase";
+
+// WorkReq is the definition of some work to be done by the system.
+message WorkReq {
+	// This is used to describe the work to be done. This name
+	// must be authorized by having a policy with the same name
+	// in the server's policies.json fie.
+	string name = 1;
+	// A description of what this is doing.
+	string desc = 2;
+	// These are groupings of Jobs. Each block is executed one at
+	// a time.
+	repeated Block blocks = 3;
+}
+
+// WorkResp details the ID that will be used to refer to a submitted WorkReq.
+message WorkResp {
+	// This is the unique ID for this WorkReq.
+	string id = 1;
+}
+
+// Block is a grouping of Jobs that will be executed concurrently
+// at some rate.
+message Block {
+	// This describes what the Block is doing.
+	string desc = 1;
+	// The amount of concurrency executions. < 1 will default to 1.
+	int32 rate_limit = 2;
+	// The Jobs to to execute in this Block.
+	repeated Job jobs = 3;
+}
+
+// Job refers to a Job action that is defined on the server.
+message Job {
+	// This is the name of the Job, which must be registered on
+	// the server.
+	string name = 1;
+	// This is a description of what the job is doing.
+	string desc = 2;
+	// A mapping of key/value arguments. While the value is a string,
+	// it can represent non-string data and will be converted by the
+	// Job on the server. See the Job definition for a list of arguments
+	// that are mandatory and optional.
+	map<string, string> args = 3;
+}
+
+// ExecReq is used to tell the server to execute a WorkReq
+// that was previously submitted.
+message ExecReq {
+	// This is the unique ID of the WorkReq given back
+	// by WorkResp.
+	string id = 1;
+}
+
+// ExecResp is the response from an ExecReq.
+message ExecResp {}
+
+// Status details the status of a Block or Job.
+enum Status {
+	// Indicates that there is some bug
+	// as the Status for the object was not set.
+	StatusUnknown = 0;
+	// The WorkReq, Block or Job has not started execution.
+	StatusNotStarted = 1;
+	// The WorkReq, Block or Job is currently executing.
+	StatusRunning = 2;
+	// The WorkReq, Block or Job has failed.
+	StatusFailed = 3;
+	// The WorkReq, Block or Job has completed.
+	StatusCompleted = 4;
+}
+
+// StatusReq requests a status update from the server.
+message StatusReq {
+	// The unique ID of the WorkReq.
+	string id = 1;
+}
+
+// StatusResp is the status of WorkReq.
+message StatusResp {
+	// The name of the WorkReq.
+	string name = 1;
+	// The description of the WorkReq.
+	string desc = 2; 
+	// The overall status of the WorkReq.
+	Status status = 3;
+	// The status information on the Blocks.
+	repeated BlockStatus blocks = 4;
+	// If we are SatusFailed or StatusCompleted, if
+	// there were any errors when run.
+	bool had_errors = 5;
+	// If the WorkReq was stopped with emergency stop.
+	bool was_es_stopped = 6;
+}
+
+// BlockStatus holds the status of block execution.
+message BlockStatus {
+	// The description of the block.
+	string desc = 1;
+	// The status of the block.
+	Status status = 2;
+	// If there any errors in Jobs in the Block.
+	bool has_error = 3;
+	// The status of Jobs in the Block.
+	repeated JobStatus jobs = 4;
+}
+
+// JobStatus holds the status of the Jobs.
+message JobStatus {
+	// The name of the Job called.
+	string name = 1;
+	// The description of the Job.
+	string desc = 2;
+	// The args for the Job.
+	map<string, string> args = 3;
+	// The status of the Job.
+	Status status = 4;
+	// The error, if there was one.
+	string error = 5;
+}
+
+service Workflow {
+	// Submit the work to the server. This will not execute the work, it will
+	// simply verify it against policy and store it for execution.
+	rpc Submit(WorkReq) returns (WorkResp) {};
+	// Tell the service to execute a WorkReq submitted earlier.
+	rpc Exec(ExecReq) returns (ExecResp) {};
+	// Get the status of a WorkReq.
+	rpc Status(StatusReq) returns (StatusResp) {};
+}

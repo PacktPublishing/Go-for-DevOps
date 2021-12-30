@@ -1,0 +1,39 @@
+{
+	"Name": "SatelliteDiskErase",
+	"Policies": [
+		{
+			"Name": "restrictJobTypes",
+			"Settings": {
+				"AllowedJobs": [
+				        "validateDecom",
+        				"diskErase",
+        				"sleep",
+        				"tokenBucket"
+				]
+			}
+		},
+		{
+			"Name": "sameArgs",
+			"Settings": {
+				"Jobs": {
+					"diskErase": [
+						"Site"
+					]
+				}
+			}
+		},
+		{
+			"Name": "startOrEnd",
+			"Settings": {
+				"JobName": "tokenBucket",
+				"MustArgs": {
+					"bucket": "diskEraseSatellite"
+				},
+				"Start": true,
+				"AllowedBeforeOrAfter": [
+					"validateDecom"
+				]
+			}
+		}
+	]
+}
