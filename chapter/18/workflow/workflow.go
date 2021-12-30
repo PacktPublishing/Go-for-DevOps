@@ -3,14 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
-	"log"
 	"path/filepath"
 
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/data/packages/sites"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/internal/policy/config"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/internal/service"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/data/packages/sites"
 	"google.golang.org/grpc"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/proto"

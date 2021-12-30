@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/internal/service/jobs"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/data/packages/sites"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/internal/service/jobs"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/internal/token"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/proto"

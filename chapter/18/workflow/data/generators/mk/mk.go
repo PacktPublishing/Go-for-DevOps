@@ -6,8 +6,8 @@ import (
 )
 
 type site struct {
-	Name string
-	Type string
+	Name   string
+	Type   string
 	Status string
 }
 
@@ -28,8 +28,8 @@ func main() {
 			t = "satellite"
 		}
 		site := site{
-			Name: string(append([]byte{}, first, second, third)),
-			Type: t,
+			Name:   string(append([]byte{}, first, second, third)),
+			Type:   t,
 			Status: "inService",
 		}
 		switch site.Name {

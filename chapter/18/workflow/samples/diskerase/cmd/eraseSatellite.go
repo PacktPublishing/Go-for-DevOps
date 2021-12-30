@@ -105,7 +105,7 @@ to quickly create a Cobra application.`,
 		fmt.Println("server is executing workflow(%s)", id)
 
 		if err := monitor(context.Background(), c, id); err != nil {
-			fmt.Printf("problem monitoring workflow(%s): %s",id, err)
+			fmt.Printf("problem monitoring workflow(%s): %s", id, err)
 			return
 		}
 	},

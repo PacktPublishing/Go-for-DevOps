@@ -28,10 +28,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"time"
-	"reflect"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/internal/policy"
 )

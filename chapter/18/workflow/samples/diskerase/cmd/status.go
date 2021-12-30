@@ -28,9 +28,9 @@ import (
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/client"
 
+	"github.com/fatih/color"
 	"github.com/inancgumus/screen"
 	"github.com/spf13/cobra"
-	"github.com/fatih/color"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/proto"
 )

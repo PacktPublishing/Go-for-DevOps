@@ -5,12 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
-	"log"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -22,7 +22,7 @@ import (
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/workflow/proto"
 )
 
-// active provides an entry for an actively executing workflow. 
+// active provides an entry for an actively executing workflow.
 type active struct {
 	work   *executor.Work
 	status atomic.Value // *pb.StatusResp
@@ -34,12 +34,12 @@ type Workflow struct {
 	storageDir string
 
 	// mu protects active
-	mu sync.Mutex 
+	mu sync.Mutex
 	// active tracks all active work that is occuring.
 	active map[string]*active
 
 	// Required for gRPC to run, makes sure we have all the methods defined.
-	pb.UnimplementedWorkflowServer 
+	pb.UnimplementedWorkflowServer
 }
 
 // New creates a new Workflow service.
@@ -53,7 +53,7 @@ func New(storageDir string) (*Workflow, error) {
 	}
 	u := "ping_" + uuid.NewString()
 	p := filepath.Join(storageDir, u)
-	f, err := os.OpenFile(p, os.O_CREATE + os.O_RDWR, 0600)
+	f, err := os.OpenFile(p, os.O_CREATE+os.O_RDWR, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("could not open a file in storage(%s) for RDWR: %w", err)
 	}
@@ -141,7 +141,7 @@ func (w *Workflow) Exec(ctx context.Context, req *pb.ExecReq) (*pb.ExecResp, err
 	defer func() { <-executeRateLimit }()
 
 	p := filepath.Join(w.storageDir, req.Id)
-	statP := filepath.Join(w.storageDir, req.Id+ "_status")
+	statP := filepath.Join(w.storageDir, req.Id+"_status")
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -211,14 +211,14 @@ func (w *Workflow) Exec(ctx context.Context, req *pb.ExecReq) (*pb.ExecResp, err
 
 			// Record our status on disk. If there is an entry pending,
 			// remove it for the latest entry.
-			select{
+			select {
 			case writeIn <- status:
 			default:
-				select{
+				select {
 				case <-writeIn:
 				default:
 				}
-				writeIn <-status
+				writeIn <- status
 			}
 		}
 		w.mu.Lock()
