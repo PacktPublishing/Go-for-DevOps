@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/service/jobs"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/sites"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/data/packages/sites"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/token"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto"
@@ -32,7 +32,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	buckets["satDiskErase"] = satDiskErase
+	buckets["diskEraseSatellite"] = satDiskErase
 }
 
 type args struct {
@@ -49,8 +49,8 @@ func (a *args) validate(args map[string]string) error {
 	for k, v := range args {
 		switch k {
 		case "bucket":
-			if _, ok := buckets[v]; ok {
-				return fmt.Errorf("bucket(%s) was not a valid")
+			if _, ok := buckets[v]; !ok {
+				return fmt.Errorf("bucket(%s) was not a valid", v)
 			}
 			must["bucket"] = true
 			a.bucket = v
@@ -107,9 +107,9 @@ func (j *Job) Run(ctx context.Context, job *pb.Job) error {
 	}
 	if err := buckets[j.args.bucket].Token(ctx); err != nil {
 		if j.args.fatal {
-			return fmt.Errorf("not token(%s) available", j.args.bucket)
+			return jobs.Fatalf("token(%s) not available", j.args.bucket)
 		}
-		return fmt.Errorf("workflow cancelled before token(%s) was available", j.args.bucket)
+		return jobs.Fatalf("workflow cancelled before token(%s) was available", j.args.bucket)
 	}
 	return nil
 }

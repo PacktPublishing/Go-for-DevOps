@@ -15,7 +15,7 @@ import (
 	"fmt"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/service/jobs"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/sites"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/data/packages/sites"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto"
 )
@@ -35,16 +35,18 @@ func (a *args) validate(args map[string]string) error {
 		"site": false,
 		"type": false,
 	}
-	var site sites.Site
+	var siteData sites.Site
 
 	for k, v := range args {
 		switch k {
 		case "site":
-			if _, ok := sites.Data.Sites[v]; ok {
-				return fmt.Errorf("site(%s) was not a valid site")
+			s, ok := sites.Data.Sites[v]
+			if !ok {
+				return fmt.Errorf("site(%s) was not a valid site", v)
 			}
 			must["site"] = true
 			a.site = v
+			siteData = s
 		case "type":
 			must["type"] = true
 			a.siteType = v
@@ -53,12 +55,12 @@ func (a *args) validate(args map[string]string) error {
 		}
 	}
 
-	if site.Type != a.siteType {
-		return fmt.Errorf("site(%s) does not match the type(%s) we expected(%s)", a.site, a.siteType, site.Type)
+	if siteData.Type != a.siteType {
+		return fmt.Errorf("site(%s) is type(%s), we expected(%s)", a.site, siteData.Type, a.siteType)
 	}
 
-	if site.Status != "decom" {
-		return fmt.Errorf("site(%s) is not in the decom state, was in %q", site.Status)
+	if siteData.Status != "decom" {
+		return fmt.Errorf("site(%s) is not in the decom state, was in %q", siteData.Status)
 	}
 
 	for k, v := range must {

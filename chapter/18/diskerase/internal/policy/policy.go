@@ -20,13 +20,13 @@ import (
 var policies = map[string]registration{}
 
 type registration struct {
-	policy Policy
+	policy   Policy
 	settings Settings
 }
 
 // Setting holds a struct that is used to hold the Policy settings that are invoked.
 // These are defined per policy. This should always be a struct and not a *struct.
-type Settings interface{
+type Settings interface {
 	// Validate validates the Settings for a Policy.
 	Validate() error
 }
@@ -61,14 +61,14 @@ func GetSettings(name string) (Settings, error) {
 	if !ok {
 		return nil, fmt.Errorf("policy(%s) cannot be found", name)
 	}
-	return r.Settings, nil
+	return r.settings, nil
 }
 
 // Policy represents a policy that is defined to check a WorkReq is compliant.
 type Policy interface {
 	// Run runs the policy against a request with settings that are specific
 	// to the policy. settings can be nil for certain implementations.
-	Run(ctx context.Context, name string, req *pb.WorkReq, settings Settings) error
+	Run(ctx context.Context, req *pb.WorkReq, settings Settings) error
 }
 
 // PolicyArgs detail a policy and settings to use to invoke it.
@@ -96,14 +96,19 @@ func Run(ctx context.Context, req *pb.WorkReq, args ...PolicyArgs) error {
 	// to simply run them against the settings in the next part.
 	runners := make([]func() error, 0, len(args))
 	for _, arg := range args {
+		arg := arg
 		r, ok := policies[arg.Name]
 		if !ok {
 			return fmt.Errorf("policy(%s) does not exist", arg.Name)
 		}
 		runners = append(
 			runners,
-			func()error{
-				return r.Policy.Run(ctx, arg.Name, creq, arg.Settings)
+			func() error {
+				err := r.policy.Run(ctx, creq, arg.Settings)
+				if err != nil {
+					return fmt.Errorf("policy(%s) violation: %w", arg.Name, err)
+				}
+				return nil
 			},
 		)
 	}

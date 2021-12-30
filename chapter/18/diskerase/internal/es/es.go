@@ -118,9 +118,6 @@ func (r *Reader) Subscribe(name string) (chan Status, Cancel) {
 	ch := make(chan Status, 1)
 	ch <- Go
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	l := r.subscribers[name]
 	l = append(l, ch)
 	r.subscribers[name] = l
@@ -145,11 +142,11 @@ func (r *Reader) Subscribe(name string) (chan Status, Cancel) {
 
 // Status returns the ES status for the named workflow.
 func (r *Reader) Status(name string) Status {
-	m := entries.Load().(map[string]Info)
+	m := r.entries.Load().(map[string]Info)
 	switch m[name].Status {
 	case Go:
 		return Go
-		
+
 	}
 	return Stop
 }

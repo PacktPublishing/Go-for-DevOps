@@ -1,6 +1,6 @@
 /*
 Package config stores the policy configuration Go representation, a global variable called
-Policies that is for reading the Config as it is updated on disk and 
+Policies that is for reading the Config as it is updated on disk and
 configuration validation to make sure errors don't slip in to the Config.
 
 A configuration is stored in JSON and looks like:
@@ -31,6 +31,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"reflect"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/policy"
 )
@@ -38,7 +39,9 @@ import (
 // Policies provides the policy Reader that can be used to read the current policy.
 var Policies *Reader
 
-func init() {
+// Init is called in main to initialize our reads of the policy file. It is called
+// manually instead of init() to guarantee other init() statements are run first.
+func Init() {
 	r, err := newReader("configs/policies.json")
 	if err != nil {
 		panic(err)
@@ -54,6 +57,12 @@ type Config struct {
 	// Set if the last load of a new Config had errors. This Config will not
 	// have any errors if this is set.
 	err error
+}
+
+func newConfig() Config {
+	return Config{
+		Workflows: map[string]Workflow{},
+	}
 }
 
 func (c Config) validate() error {
@@ -82,7 +91,7 @@ func (w Workflow) validate() error {
 
 	for i, p := range w.Policies {
 		if err := p.validate(); err != nil {
-			return fmt.Errorf("Workflow(%s): %s", err)
+			return fmt.Errorf("Workflow(%s): %s", w.Name, err)
 		}
 		w.Policies[i] = p // Stores the Policy that has SettingsTyped stored
 	}
@@ -109,13 +118,31 @@ func (p *Policy) validate() error {
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(p.Settings, &s); err != nil {
-		return fmt.Errorf("Policy(%s) could not unmarshal its Settings: %s", err)
+
+	// This section is going to be confusing, as it is using an advanced topic called
+	// runtime reflection. This is a topic that really can be its own book. Suffice it to say,
+	// I wanted every registered implementation of our policy.Settings to be a struct{}, not
+	// a *struct. This makes it easy to make copies of it without worrying about accidental
+	// modification. But, you can only unmarshal JSON into a *struct. Because all these specific
+	// Settings are stored inside an interface called policy.Settings, you can't do:
+	// &s, because that would be the address of the interface, not the underlying value.
+	// Confused?? Yeah, I know.......
+	// So here we are going to use the reflect package to create a pointer to the specific
+	// value the user put in the interface. Then we are going to unmarshal into that.
+	// Then we are going to convert that back to a policy.Settings interface.
+	// Don't spend a bunch of time here, reflection is something better left avoided if you can.
+	val := reflect.ValueOf(s)
+	ptr := reflect.New(val.Type())
+
+	if err := json.Unmarshal(p.Settings, ptr.Interface()); err != nil {
+		return fmt.Errorf("policy(%s) could not unmarshal its Settings: %s", p.Name, err)
 	}
-	if err := s.Validate(); err != nil {
-		return fmt.Errorf("Policy(%s) Settings did not validate: %s", err)
+	p.SettingsTyped = ptr.Elem().Interface().(policy.Settings)
+
+	if err := p.SettingsTyped.Validate(); err != nil {
+		return fmt.Errorf("policy(%s) Settings did not validate: %s", p.Name, err)
 	}
-	p.SettingsTyped = s
+
 	return nil
 }
 
@@ -155,7 +182,7 @@ func (r *Reader) load() error {
 	}
 	defer f.Close()
 
-	c := Config{}
+	c := newConfig()
 
 	dec := json.NewDecoder(f)
 	dec.DisallowUnknownFields()
@@ -175,7 +202,7 @@ func (r *Reader) load() error {
 	}
 
 	if err := c.validate(); err != nil {
-		return fmt.Errorf("policy config had an error: %s")
+		return fmt.Errorf("policy config had an error: %s", err)
 	}
 	r.conf.Store(c)
 	return nil

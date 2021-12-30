@@ -62,6 +62,15 @@ func IsFatal(err error) bool {
 	return errors.Is(err, FatalErr{})
 }
 
+// Is implements the built in Is method.
+func (f FatalErr) Is(target error) bool { 
+	switch target.(type) {
+	case FatalErr, *FatalErr:
+		return true
+	}
+	return false
+}
+
 // Error() implements error.Error().
 func (f FatalErr) Error() string {
 	if f.err == nil {

@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/service/jobs"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/sites"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/data/packages/sites"
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto"
 )
 
@@ -41,9 +41,10 @@ func (a *args) validate(args map[string]string) error {
 		switch k {
 		case "machine":
 			must["machine"] = true
+			a.machine = v
 		case "site":
-			if _, ok := sites.Data.Sites[v]; ok {
-				return fmt.Errorf("site(%s) was not a valid site")
+			if _, ok := sites.Data.Sites[v]; !ok {
+				return fmt.Errorf("site(%s) arg was not a valid site", v)
 			}
 			must["site"] = true
 			a.site = v
@@ -53,15 +54,16 @@ func (a *args) validate(args map[string]string) error {
 		}
 	}
 
-	_, ok := sites.Data.Machines[fmt.Sprintf("%s.%s", a.machine, a.site)]
-	if !ok {
-		return fmt.Errorf("invalid arg(machine): machine(%s) does not exist")
-	}
-
 	for k, v := range must {
 		if !v {
 			return fmt.Errorf("missing required arg(%s)", k)
 		}
+	}
+
+	fullName := fmt.Sprintf("%s.%s", a.machine, a.site)
+	_, ok := sites.Data.Machines[fullName]
+	if !ok {
+		return fmt.Errorf("invalid arg(machine): machine(%s) does not exist", fullName)
 	}
 
 	return nil

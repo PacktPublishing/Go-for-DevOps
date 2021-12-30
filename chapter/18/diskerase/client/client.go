@@ -66,6 +66,11 @@ func New(addr string) (*Workflow, error) {
 				},
 			},
 		),
+		retryPool: sync.Pool{
+			New: func() interface{} {
+				return backoff.NewExponentialBackOff()
+			},
+		},
 	}, nil
 }
 
@@ -141,11 +146,14 @@ func (w *Workflow) call(ctx context.Context, req proto.Message, call grpcCall) (
 		// Execute our op() func until the context is cancelled with exponential backoff.
 		for {
 			err := op()
-			if err != nil {
-				if isFatal(err) {
-					return err
-				}
+			if err == nil {
+				return nil
 			}
+
+			if isFatal(err) {
+				return err
+			}
+
 			// We manually are going to do our backoff instead of using backoff.Retry()
 			// because we want to differentiate between fatal errors that should never
 			// get retried and errors that just need backing off.
@@ -162,7 +170,7 @@ func (w *Workflow) call(ctx context.Context, req proto.Message, call grpcCall) (
 			select {
 			case <-ctx.Done():
 				timer.Stop()
-				return ctx.Err()
+				return err
 			case <-timer.C:
 			}
 		}

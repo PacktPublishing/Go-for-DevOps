@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/service/jobs"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/policy"
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto"
 )
@@ -20,13 +21,13 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	policy.Register("startOrEnd", p)
+	policy.Register("startOrEnd", p, Settings{})
 }
 
 // Settings provides settings for a specific implementation of our Policy.
 type Settings struct {
-	// JobType is the type of job that must be present.
-	JobType string
+	// JobName is the name of the job that must be present.
+	JobName string
 	// MustArgs indicate arguments that must be set to a certain setting.
 	MustArgs map[string]string
 	// Start indicates this must be one of the first jobs.
@@ -37,36 +38,39 @@ type Settings struct {
 	// this job if Start == true, or after this job if End == true.
 	AllowedBeforeOrAfter []string
 
-	jt pb.JobType
-	allowed map[pb.JobType]bool
+	allowed map[string]bool
 }
 
-func (s Settings) compile(name string) (Settings, error){
-	s.allowed = map[pb.JobType]bool{}
-	jt, ok := pb.JobType_value[s.JobType]
-	if !ok {
-		return Settings{}, fmt.Errorf("policy(%s): JobType(%s) is invalid", name, s.JobType)
-	}
-	s.jt = pb.JobType(jt)
-	if s.Start && s.End {
-		return Settings{}, fmt.Errorf("policy(%s): Start and End cannot both be true", name)
-	}
-	if !s.Start && !s.End {
-		return Settings{}, fmt.Errorf("policy(%s): either Start of End must be set", name)
+func (s Settings) Validate() error {
+	if _, err := jobs.GetJob(s.JobName); err != nil {
+		return fmt.Errorf("Job(%s) is invalid", s.JobName)
 	}
 
-	for _, jts := range s.AllowedBeforeOrAfter {
-		jt, ok := pb.JobType_value[jts]
-		if !ok {
-			return Settings{}, fmt.Errorf("policy(%s): AllowedBeforeOrAfter had JobType(%s) that is invalid")
-		}
-		s.allowed[pb.JobType(jt)] = true
+	if s.Start && s.End {
+		return fmt.Errorf("Start and End cannot both be true")
 	}
-	return s, nil
+	if !s.Start && !s.End {
+		return fmt.Errorf("either Start of End must be set")
+	}
+
+	for _, name := range s.AllowedBeforeOrAfter {
+		if _, err := jobs.GetJob(name); err != nil {
+			return fmt.Errorf("AllowedBeforeOrAfter had Job(%s) that is invalid", name)
+		}
+	}
+	return nil
+}
+
+func (s Settings) compile() Settings {
+	s.allowed = map[string]bool{}
+	for _, name := range s.AllowedBeforeOrAfter {
+		s.allowed[name] = true
+	}
+	return s
 }
 
 // Policy implements policy.Policy.
-type Policy struct{
+type Policy struct {
 }
 
 // New is the constructor for Policy.
@@ -75,32 +79,27 @@ func New() (Policy, error) {
 }
 
 // Run implements Policy.Run().
-func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings interface{}) error {
+func (p Policy) Run(ctx context.Context, req *pb.WorkReq, settings policy.Settings) error {
 	s, ok := settings.(Settings)
 	if !ok {
-		return fmt.Errorf("settings were not valid")
-	}
-	var err error
-	s, err = s.compile(name)
-	if err != nil {
-		return err
+		return fmt.Errorf("settings were not valid type, were %T", settings)
 	}
 
-	return p.eachWorkReq(ctx, name, req, s)
+	return p.eachWorkReq(ctx, req, s.compile())
 }
 
-func (p Policy) eachWorkReq(ctx context.Context, name string, req *pb.WorkReq, s Settings) error {
+func (p Policy) eachWorkReq(ctx context.Context, req *pb.WorkReq, s Settings) error {
 	if s.Start {
 		err := p.startOfBlock(ctx, req.Blocks[0].Jobs, s)
 		if err != nil {
-			return fmt.Errorf("policy(%s): requires JobType(%s) in the first block: %s", name, s.JobType, err)
+			return fmt.Errorf("requires Job(%s) in the first block: %s", s.JobName, err)
 		}
 		return err
 	}
 
 	err := p.endOfBlock(ctx, req.Blocks[len(req.Blocks)-1].Jobs, s)
 	if err != nil {
-		err = fmt.Errorf("policy(%s): requires JobType(%s) in the last block: %s", name, s.JobType, err)
+		err = fmt.Errorf("requires Job(%s) in the last block: %s", s.JobName, err)
 		return err
 	}
 	return nil
@@ -108,10 +107,10 @@ func (p Policy) eachWorkReq(ctx context.Context, name string, req *pb.WorkReq, s
 
 func (p Policy) startOfBlock(ctx context.Context, block []*pb.Job, s Settings) error {
 	for _, job := range block {
-		if job.Type == s.jt {
+		if job.Name == s.JobName {
 			return p.mustHave(ctx, job, s)
 		}
-		if s.allowed[job.Type] {
+		if s.allowed[job.Name] {
 			continue
 		}
 		return fmt.Errorf("not found at the beginning of the block")
@@ -122,10 +121,10 @@ func (p Policy) startOfBlock(ctx context.Context, block []*pb.Job, s Settings) e
 func (p Policy) endOfBlock(ctx context.Context, block []*pb.Job, s Settings) error {
 	for i := len(block); i > 0; i-- {
 		job := block[i]
-		if job.Type == s.jt {
+		if job.Name == s.JobName {
 			return p.mustHave(ctx, job, s)
 		}
-		if s.allowed[job.Type] {
+		if s.allowed[job.Name] {
 			continue
 		}
 		return fmt.Errorf("not found at the beginning of the block")

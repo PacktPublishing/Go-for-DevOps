@@ -8,6 +8,7 @@ import (
 type site struct {
 	Name string
 	Type string
+	Status string
 }
 
 type machine struct {
@@ -26,13 +27,17 @@ func main() {
 		if i%3 == 0 {
 			t = "satellite"
 		}
-		sites = append(
-			sites,
-			site{
-				Name: string(append([]byte{}, first, second, third)),
-				Type: t,
-			},
-		)
+		site := site{
+			Name: string(append([]byte{}, first, second, third)),
+			Type: t,
+			Status: "inService",
+		}
+		switch site.Name {
+		case "aap", "adg", "adv":
+			site.Status = "decom"
+		}
+		sites = append(sites, site)
+
 		if third < 122 {
 			third++
 		} else {
@@ -50,7 +55,7 @@ func main() {
 			first := byte(97)
 			second := byte(97)
 			a := byte(48)
-			b := byte(49)
+			b := byte(48)
 			for i := 0; i < 50; i++ {
 				name := append([]byte{}, first, second, a, b)
 				machines = append(

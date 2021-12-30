@@ -8,7 +8,7 @@
 				        "validateDecom",
         				"diskErase",
         				"sleep",
-        				"getTokenFromBucket"
+        				"tokenBucket"
 				]
 			}
 		},
@@ -25,11 +25,14 @@
 		{
 			"Name": "startOrEnd",
 			"Settings": {
-				"JobType": "getTokenFromBucket",
+				"JobName": "tokenBucket",
 				"MustArgs": {
-					"Bucket": "diskEraseSatellite"
+					"bucket": "diskEraseSatellite"
 				},
-				"Start": true
+				"Start": true,
+				"AllowedBeforeOrAfter": [
+					"validateDecom"
+				]
 			}
 		}
 	]

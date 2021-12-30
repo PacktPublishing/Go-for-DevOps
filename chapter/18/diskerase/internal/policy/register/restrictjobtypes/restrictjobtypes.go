@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/policy"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/service/jobs"
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto"
 )
 
@@ -18,7 +19,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	policy.Register("restrictJobTypes", p)
+	policy.Register("restrictJobTypes", p, Settings{})
 }
 
 // Settings provides settings for a specific implementation of our Policy.
@@ -29,10 +30,11 @@ type Settings struct {
 // Validate implements policy.Settings.Validate().
 func (s Settings) Validate() error {
 	for _, n := range s.AllowedJobs {
-		_, err := jobs.GetJob()
+		_, err := jobs.GetJob(n)
 		if err != nil {
-			return fmt.Errorf("allowed job(%s) is not defined in the proto")
+			return fmt.Errorf("allowed job(%s) is not registered in the system", n)
 		}
+	}
 	return nil
 }
 
@@ -54,12 +56,12 @@ func New() (Policy, error) {
 }
 
 // Run implements Policy.Run().
-func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings policy.Settings) error {
-	const errMsg = "policy(%s): block(%d)/job(%d) is a type(%s) that is not allowed"
+func (p Policy) Run(ctx context.Context, req *pb.WorkReq, settings policy.Settings) error {
+	const errMsg = "block(%d)/job(%d) is a type(%s) that is not allowed"
 
 	s, ok := settings.(Settings)
 	if !ok {
-		return fmt.Errorf("settings were not valid")
+		return fmt.Errorf("settings were not valid type, were %T", settings)
 	}
 
 	for blockNum, block := range req.Blocks {
@@ -69,7 +71,7 @@ func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings 
 			}
 
 			if !s.allowed(job.Name) {
-				return fmt.Errorf(errMsg, blockNum, jobNum, job.name)
+				return fmt.Errorf(errMsg, blockNum, jobNum, job.Name)
 			}
 		}
 	}

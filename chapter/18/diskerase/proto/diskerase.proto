@@ -39,11 +39,13 @@ message Job {
 	// This is the name of the Job, which must be registered on
 	// the server.
 	string name = 1;
+	// This is a description of what the job is doing.
+	string desc = 2;
 	// A mapping of key/value arguments. While the value is a string,
 	// it can represent non-string data and will be converted by the
 	// Job on the server. See the Job definition for a list of arguments
 	// that are mandatory and optional.
-	map<string, string> args = 2;
+	map<string, string> args = 3;
 }
 
 // ExecReq is used to tell the server to execute a WorkReq
@@ -111,12 +113,14 @@ message BlockStatus {
 message JobStatus {
 	// The name of the Job called.
 	string name = 1;
+	// The description of the Job.
+	string desc = 2;
 	// The args for the Job.
-	map<string, string> args = 2;
+	map<string, string> args = 3;
 	// The status of the Job.
-	Status status = 3;
+	Status status = 4;
 	// The error, if there was one.
-	string error = 4;
+	string error = 5;
 }
 
 service Workflow {

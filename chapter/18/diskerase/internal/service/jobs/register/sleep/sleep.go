@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/service/jobs"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/sites"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/data/packages/sites"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto"
 )

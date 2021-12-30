@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/service/jobs"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/internal/policy"
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/18/diskerase/proto"
 )
@@ -20,7 +21,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	policy.Register("sameArgs", p)
+	policy.Register("sameArgs", p, Settings{})
 }
 
 // ArgKeys are a list of string
@@ -28,21 +29,31 @@ type ArgKeys []string
 
 // Settings provides settings for a specific implementation of our Policy.
 type Settings struct {
-	// Jobs are a list of JobType we want to check and the args
-	// that must be the same across each Job with that JobType.
-	Jobs map[pb.JobType]ArgKeys
+	// Jobs are a list of Job names we want to check and the args
+	// that must be the same across each Job with that name.
+	Jobs map[string]ArgKeys
+}
+
+// Settings implements policy.Settings.Validate().
+func (s Settings) Validate() error {
+	for name := range s.Jobs {
+		if _, err := jobs.GetJob(name); err != nil {
+			return fmt.Errorf("Job(%s) was not found", name)
+		}
+	}
+	return nil
 }
 
 // checkJob returns true if we have a setting corresponding to the JobType.
-func (s Settings) checkJob(jt pb.JobType) bool {
-	_, ok := s.Jobs[jt]
+func (s Settings) checkJob(name string) bool {
+	_, ok := s.Jobs[name]
 	return ok
 }
 
 // needKey simply looks at our Jobs argument and determines if we care about
 // a specific arg key for a JobType.
-func (s Settings) needKey(jt pb.JobType, k string) bool {
-	keys, ok := s.Jobs[jt]
+func (s Settings) needKey(name string, k string) bool {
+	keys, ok := s.Jobs[name]
 	if !ok {
 		return false
 	}
@@ -56,20 +67,20 @@ func (s Settings) needKey(jt pb.JobType, k string) bool {
 
 // sameCheck holds a mapping of JobType that holds args we care about and
 // the value that should be the same through every instance.
-type sameCheck map[pb.JobType]map[string]string
+type sameCheck map[string]map[string]string
 
 // isSame checks that a key for a JobType has the same value as "v". If
 // a value hasn't been stored, it is stored and used on every future check.
-func (s sameCheck) isSame(jt pb.JobType, k string, v string) bool {
-	kv, ok := s[jt]
+func (s sameCheck) isSame(name, k, v string) bool {
+	kv, ok := s[name]
 	if !ok {
-		s[jt] = map[string]string{k: v}
+		s[name] = map[string]string{k: v}
 		return true
 	}
 
 	stored, ok := kv[k]
 	if !ok {
-		s[jt][k] = v
+		s[name][k] = v
 		return true
 	}
 	if stored == v {
@@ -87,10 +98,10 @@ func New() (Policy, error) {
 }
 
 // Run implements Policy.Run().
-func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings interface{}) error {
+func (p Policy) Run(ctx context.Context, req *pb.WorkReq, settings policy.Settings) error {
 	s, ok := settings.(Settings)
 	if !ok {
-		return fmt.Errorf("settings were not valid")
+		return fmt.Errorf("settings were not valid type, were %T", settings)
 	}
 
 	same := sameCheck{}
@@ -100,10 +111,10 @@ func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings 
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			if !s.checkJob(job.Type) {
+			if !s.checkJob(job.Name) {
 				continue
 			}
-			if err := p.argSame(name, s, job, same, blockNum, jobNum); err != nil {
+			if err := p.argSame(s, job, same, blockNum, jobNum); err != nil {
 				return err
 			}
 		}
@@ -111,13 +122,13 @@ func (p Policy) Run(ctx context.Context, name string, req *pb.WorkReq, settings 
 	return nil
 }
 
-func (p Policy) argSame(name string, settings Settings, job *pb.Job, same sameCheck, blockNum, jobNum int) error {
-	const policyErrMsg = "policy(%s) of type (%s): block(%d)/job(%d) violated rule: setting(%s) is different for this job"
+func (p Policy) argSame(settings Settings, job *pb.Job, same sameCheck, blockNum, jobNum int) error {
+	const policyErrMsg = "block(%d)/job(%d) violated rule: setting(%s) is different for this job"
 
 	for k, v := range job.Args {
-		if settings.needKey(job.Type, k) { // Only check if we care about the key
-			if !same.isSame(job.Type, k, v) {
-				return fmt.Errorf(policyErrMsg, name, job.Type, blockNum, jobNum, k)
+		if settings.needKey(job.Name, k) { // Only check if we care about the key
+			if !same.isSame(job.Name, k, v) {
+				return fmt.Errorf(policyErrMsg, blockNum, jobNum, k)
 			}
 
 		}

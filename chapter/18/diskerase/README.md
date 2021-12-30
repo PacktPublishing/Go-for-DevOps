@@ -34,20 +34,28 @@ Finally I include some clients that build `WorkReq` protocol buffers and call th
 This is an example of a generic workflow system to demonstrate a bunch of concepts. This isn't a production quality service. If it has tests, they are not comprehensive. Unfortunately I have another full time job, so testing suffered for these book examples (something I would not do in my real job. Tests, tests and more tests!).
 
 Other things that make it non-production quality:
-* If we have a server restart, we cannot resume running workflows. 
-* There is no security, so anyone could call this service.  
-* Backend storage is local files. 
-* Failures do not have some maximum count, they only stop work if a Job decideds they are fatal.
+* If we have a server restart, we cannot resume running workflows, we leave half eaten carcasses of workflows just laying around
+* There is no security, so anyone could call this service. By default it starts on 127.0.0.1:8080 and doesn't have Jobs that do anything bad, but if you decide to change that, you need security
+* Backend storage is local files in a temp directory
+* Failures do not have some maximum count, they only stop work if a Job decideds they are fatal
+* We don't write creations, start and end times
+* There is no web interface
+* Didn't provide a workflow killer except through emergency stop
+* No pause capabilities
+* No workflow cloning tools
+* ...
 
-The one example workflow I put in here is a diskerase for satellite datacenters. The `diskErase` `Job` isn't real, it just sleeps.  
+The one example workflow I put in here is a diskerase for satellite datacenters. The `diskErase` `Job` isn't real, it just sleeps. The other jobs are simply looking at files representing information about fake sites and machines. These jobs could be made real, but for this demo I didn't want to actually mutate anything real.
 
-You could turn this into a real system, but it would need a lot more bells and whistles.  This is a very lightweight version of a system I developed at Google. That service could handle service failures, restarts, horizontally scaled, ... 
+You could turn this into a real system, but it would need some more bells and whistles.  This is a very lightweight version of a system I developed at Google. That service could handle service failures, restarts, horizontally scaled and lots of helpers... 
 
 This is not that system.
 
 ## Service proto definitions
 
-You can find these at: `proto/diskerase.proto`
+You can find these at: `proto/workflow.proto`
+
+## Where to find Jobs
 
 The Jobs you can call are defined in: `internal/service/jobs/register/...`
 
@@ -61,7 +69,7 @@ Result:
 	Erases a disk on a machine, except this is a demo, so it really just sleeps for 30 seconds.
 ```
 
-This let's you know what to call in with a `Job` you define. So if this was a `Job` I wanted to call, I might do:
+This let's you know what arguements to use with a `Job` you define. So if this was a `Job` I wanted to call, I might do:
 
 ```go
 job := &pb.Job{
@@ -73,15 +81,18 @@ job := &pb.Job{
 }
 ```
 
-## Policies
+## Where to find policies
 
-`Policies` are defined in: `configs/policies.json`
+All policy implementations are define at: `internal/policy/register/...`
 
-You must have a policy for every type of WorkReq you want to submit. This is checked against `WorkReq.Name`.
+In each file you will see a call called: `policy.Register("startOrEnd", p)` where "startOrEnd" is the name of the policy. The `struct` called `Settings` will give all the settings for a policy to be applied to a workflow.
 
-All policy types are define at: `internal/policy/register/...`
+Policies to apply to a workflow are defined in: `configs/policies.json`
 
-In each file you will see a call called: `policy.Register("startOrEnd", p)` where "startOrEnd" is the name of the policy. The `struct` called `Settings` will give all the settings for a policy.
+You must have a policy entry for every type of `WorkReq` you want to submit inside `policies.json`. This is checked against `WorkReq.Name`.
 
-You can call any of these policies from `policies.json` for a given `WorkReq.Name`.
+## A satellite disk erasure client
+
+You can find our example client that submits a datacenter satellite to have its disks erased at:
+`samples/diskerase`
 

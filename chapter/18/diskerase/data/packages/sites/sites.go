@@ -20,10 +20,13 @@ var (
 )
 
 // Data holds the site data and is how to access the data.
+// Note: in a real system, the data here would always be a copy. That way
+// different things accessing it could not change it for others.
 var Data SiteData
 
-func init() {
-	sd, err := newSiteData("data")
+// Init initializes our Data given the data location. Call from main().
+func Init(loc string) {
+	sd, err := newSiteData(loc)
 	if err != nil {
 		panic(err)
 	}
@@ -51,6 +54,11 @@ func (s Site) Validate() error {
 	case "satellite", "cluster":
 	default:
 		return fmt.Errorf("site has .Type(%s) that is invalid", s.Type)
+	}
+	switch s.Status {
+	case "inService", "decom", "removed":
+	default:
+		return fmt.Errorf("site has .Status(%s) that is invalid", s.Status)
 	}
 	return nil
 }
@@ -94,6 +102,7 @@ func newSiteData(dir string) (SiteData, error) {
 		return SiteData{}, err
 	}
 	defer sf.Close()
+
 	mf, err := os.Open(filepath.Join(dir, "machines.json"))
 	if err != nil {
 		return SiteData{}, err
@@ -128,6 +137,7 @@ func newSiteData(dir string) (SiteData, error) {
 			return SiteData{}, fmt.Errorf("Machine(%s) has Site(%s) that was not found in our sites.json file", m.Name, m.Site)
 		}
 		s.Machines = append(s.Machines, m)
+		sd.Sites[m.Site] = s
 		sd.Machines[m.FullName()] = m
 	}
 	return sd, nil
