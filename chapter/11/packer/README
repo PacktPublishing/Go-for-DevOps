@@ -1,0 +1,1 @@
+These hcl files work, however you will need to put in your own user's access key and secret.
