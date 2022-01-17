@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	// pkgDir is the directory in the Agent user's home where we are installling and
+	// pkgDir is the directory in the Agent user's home where we are installing and
 	// running packages. A more secure version would be to have the agent do this
 	// in individual user directories that match some user on all machines. However
 	// this is for illustration purposes only.
@@ -76,9 +76,8 @@ func (a *Agent) Start() error {
 	if err := os.MkdirAll(filepath.Dir(sockAddr), 0700); err != nil {
 		return fmt.Errorf("could not create socket dir path: %w", err)
 	}
-	if err := os.Remove(sockAddr); err != nil {
-		return fmt.Errorf("could not remove old socket file: %w", err)
-	}
+	// Remove old socket file if it exists.
+	os.Remove(sockAddr)
 
 	if err := a.perfLoop(); err != nil {
 		return err
