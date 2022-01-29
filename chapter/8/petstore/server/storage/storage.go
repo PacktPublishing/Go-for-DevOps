@@ -63,9 +63,6 @@ func BirthdayToTime(d *dpb.Date) (time.Time, error) {
 	}
 	t := time.Date(int(d.Year), time.Month(d.Month), int(d.Day), 0, 0, 0, 0, time.UTC)
 
-	if time.Now().Before(t) {
-		return time.Time{}, fmt.Errorf("birthday cannot be in the future")
-	}
 	if t.Month() != time.Month(d.Month) {
 		return time.Time{}, fmt.Errorf("month %v does not have %d days", time.Month(d.Month), d.Day)
 	}

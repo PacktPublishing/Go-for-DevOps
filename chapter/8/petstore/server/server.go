@@ -64,17 +64,19 @@ func (a *API) Stop() {
 
 // AddPets adds pets to the pet store.
 func (a *API) AddPets(ctx context.Context, req *pb.AddPetsReq) (*pb.AddPetsResp, error) {
+	ids := make([]string, 0, len(req.Pets))
 	for _, p := range req.Pets {
 		if err := storage.ValidatePet(p); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		p.Id = uuid.New().String()
+		ids = append(ids, p.Id)
 	}
 
 	if err := a.store.AddPets(ctx, req.Pets); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &pb.AddPetsResp{}, nil
+	return &pb.AddPetsResp{Ids: ids}, nil
 }
 
 // DeletePets deletes pets from the pet store.

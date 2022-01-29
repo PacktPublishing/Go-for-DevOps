@@ -109,7 +109,6 @@ func (c *Client) SearchPets(ctx context.Context, filter *pb.SearchPetsReq) (chan
 		for {
 			p, err := stream.Recv()
 			if err == io.EOF {
-				close(ch)
 				return
 			}
 			if err != nil {
