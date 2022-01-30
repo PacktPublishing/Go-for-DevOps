@@ -28,7 +28,6 @@ which carries the following license.
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Sample contains a simple client that periodically makes a simple http request
-// to a server and exports to the OpenTelemetry service.
 ```
+
+See also: [OTEL License](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/10cfdaac1387b4df7a525c3050ce18ec8f8068be/LICENSE
