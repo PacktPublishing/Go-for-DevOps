@@ -46,11 +46,20 @@ message AddPetsReq {
 	repeated Pet pets = 1;
 }
 
-// The response do AddPet().
+// The response do AddPets().
 message AddPetsResp {
 	// The IDs of the pets that were added.
 	repeated string ids = 1;
 }
+
+// The request used to update pets in the system.
+message UpdatePetsReq {
+	// The pet information to update. Pet.id must be set.
+	repeated Pet pets = 1;
+}
+
+// The response do UpdatePets().
+message UpdatePetsResp {}
 
 // Used to indicate which pets to delete. This is an all or nothing request.
 message DeletePetsReq {
@@ -71,11 +80,42 @@ message SearchPetsReq {
 	DateRange birthdate_range = 3;
 }
 
+// Types of OTEL sampling we support.
+enum SamplerType {
+	STUnknown = 0;
+	STNever = 1;
+	STAlways = 2;
+	STFloat = 3;
+}
+
+// Used to request we change the OTEL sampling.
+message ChangeSamplerReq {
+	// The type of sampling to change to.
+	SamplerType type = 1;
+
+	// This is the sampling rate if type == STFloat. Values must be
+	// > 0 and <= 1.0 .	
+	double float_value = 2;
+}
+
+// The response to a sampling change.
+message ChangeSamplerResp{}
+
 service PetStore {
 	// Adds pets to the pet store.
 	rpc AddPets(AddPetsReq) returns (AddPetsResp) {};
+	// Updates pets entries in the store.
+	rpc UpdatePets(UpdatePetsReq) returns (UpdatePetsResp) {};
 	// Deletes pets from the pet store.
 	rpc DeletePets(DeletePetsReq) returns (DeletePetsResp) {};
 	// Finds pets in the pet store.
 	rpc SearchPets(SearchPetsReq) returns (stream Pet) {};
+
+
+	// These are for management. In real life I might break this into a new server that is
+	// serving on SSH so that it has to be auth'd and reachable only from in my network
+	// or only if auth'd by something.
+
+	// Changes the OTEL sampling type.
+	rpc ChangeSampler(ChangeSamplerReq) returns (ChangeSamplerResp) {};
 }

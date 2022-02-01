@@ -2,9 +2,10 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
+
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/errors"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/proto"
 	dpb "google.golang.org/genproto/googleapis/type/date"
@@ -14,6 +15,8 @@ import (
 type Data interface {
 	// AddPets adds pet entries into storage.
 	AddPets(ctx context.Context, pets []*pb.Pet) error
+	// UpdatePets updates pet entries in storage.
+	UpdatePets(ctx context.Context, pets []*pb.Pet) error
 	// DeletePets deletes pets in storage by their ID. Will not error
 	// on IDs not found.
 	DeletePets(ctx context.Context, ids []string) error
@@ -32,39 +35,43 @@ type SearchItem struct {
 }
 
 // ValidatePet validates that *pb.Pet has valid fields.
-func ValidatePet(p *pb.Pet) error {
-	if p.Id != "" {
-		return fmt.Errorf("cannot set the Id field")
+func ValidatePet(ctx context.Context, p *pb.Pet, forUpdate bool) error {
+	if forUpdate && p.Id == "" {
+		return errors.New(ctx, "updates must have the Id field set")
+	} else {
+		if p.Id != "" {
+			return errors.New(ctx, "cannot set the Id field")
+		}
 	}
 	p.Name = strings.TrimSpace(p.Name)
 	if p.Name == "" {
-		return fmt.Errorf("cannot have a pet without a name")
+		return errors.New(ctx, "cannot have a pet without a name")
 	}
 
 	if p.Type == pb.PetType_PTUnknown {
-		return fmt.Errorf("cannot have an unknown pet type")
+		return errors.New(ctx, "cannot have an unknown pet type")
 	}
 
-	_, err := BirthdayToTime(p.Birthday)
+	_, err := BirthdayToTime(ctx, p.Birthday)
 	if err != nil {
-		return fmt.Errorf("pet(%s) had an error in its birthday: %w", p.Name, err)
+		return errors.Errorf(ctx, "pet(%s) had an error in its birthday: %w", p.Name, err)
 	}
 	return nil
 
 }
 
 // BirthdayToTime converts the *pb.Pet.Birthday field to a time.Time object.
-func BirthdayToTime(d *dpb.Date) (time.Time, error) {
+func BirthdayToTime(ctx context.Context, d *dpb.Date) (time.Time, error) {
 	if d.Month < 1 || d.Month > 12 {
-		return time.Time{}, fmt.Errorf("month must be 1-12, was %d", d.Month)
+		return time.Time{}, errors.Errorf(ctx, "month must be 1-12, was %d", d.Month)
 	}
 	if d.Day < 1 || d.Day > 31 {
-		return time.Time{}, fmt.Errorf("day(%d) was invalid", d.Day)
+		return time.Time{}, errors.Errorf(ctx, "day(%d) was invalid", d.Day)
 	}
 	t := time.Date(int(d.Year), time.Month(d.Month), int(d.Day), 0, 0, 0, 0, time.UTC)
 
 	if t.Month() != time.Month(d.Month) {
-		return time.Time{}, fmt.Errorf("month %v does not have %d days", time.Month(d.Month), d.Day)
+		return time.Time{}, errors.Errorf(ctx, "month %v does not have %d days", time.Month(d.Month), d.Day)
 	}
 	return t, nil
 }

@@ -7,7 +7,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/server/storage"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/storage"
+	"go.opentelemetry.io/otel/baggage"
 
 	"google.golang.org/grpc"
 
@@ -49,7 +50,7 @@ func (p Pet) Proto() *pb.Pet {
 func (p Pet) Birthday() time.Time {
 	// We are ignoring the error as we will either get a zero time
 	// anyways and the server should be preventing this problem.
-	t, _ := storage.BirthdayToTime(p.Pet.Birthday)
+	t, _ := storage.BirthdayToTime(context.Background(), p.Pet.Birthday)
 	return t
 }
 
@@ -65,8 +66,16 @@ func (c *Client) AddPets(ctx context.Context, pets []*pb.Pet) ([]string, error) 
 		return nil, nil
 	}
 
+	/*
+		method, _ := baggage.NewMember("method", "repl")
+		client, _ := baggage.NewMember("client", "cli")
+		bag, _ := baggage.New(method, client)
+	*/
+
+	defaultCtx := baggage.ContextWithBaggage(context.Background(), bag)
+
 	for _, p := range pets {
-		if err := storage.ValidatePet(p); err != nil {
+		if err := storage.ValidatePet(ctx, p, false); err != nil {
 			return nil, err
 		}
 	}
@@ -76,6 +85,33 @@ func (c *Client) AddPets(ctx context.Context, pets []*pb.Pet) ([]string, error) 
 		return nil, err
 	}
 	return resp.Ids, nil
+}
+
+// UpdatePets updates pets that already exist in the system.
+func (c *Client) UpdatePets(ctx context.Context, pets []*pb.Pet) error {
+	if len(pets) == 0 {
+		return nil
+	}
+
+	/*
+		method, _ := baggage.NewMember("method", "repl")
+		client, _ := baggage.NewMember("client", "cli")
+		bag, _ := baggage.New(method, client)
+	*/
+
+	defaultCtx := baggage.ContextWithBaggage(context.Background(), bag)
+
+	for _, p := range pets {
+		if err := storage.ValidatePet(ctx, p, true); err != nil {
+			return err
+		}
+	}
+
+	resp, err := c.client.UpdatePets(ctx, &pb.UpdatePetsReq{Pets: pets})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // DeletePets deletes pets with the IDs passed. If the ID doesn't exist, the

@@ -7,14 +7,15 @@ package mem
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
+
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/errors"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/storage"
 
 	"github.com/biogo/store/llrb"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/proto"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/server/storage"
 )
 
 // birthdays represents a set of pets that share the same birthday with
@@ -34,8 +35,8 @@ func (bi birthdays) Compare(b llrb.Comparable) int {
 
 	// Ignore errors because we have to conform to a function def
 	// and we should not be storing records with errors in the Birthday.
-	at, _ := storage.BirthdayToTime(ap.Birthday)
-	bt, _ := storage.BirthdayToTime(bp.Birthday)
+	at, _ := storage.BirthdayToTime(nil, ap.Birthday)
+	bt, _ := storage.BirthdayToTime(nil, bp.Birthday)
 
 	switch {
 	case at.Before(bt):
@@ -55,17 +56,17 @@ type birthdayGet struct {
 func (bi birthdayGet) Compare(b llrb.Comparable) int {
 	// Ignore errors because we have to conform to a function def
 	// and we should not be storing records with errors in the Birthday.
-	at, _ := storage.BirthdayToTime(bi.Pet.Birthday)
+	at, _ := storage.BirthdayToTime(nil, bi.Pet.Birthday)
 	var bt time.Time
 	switch v := b.(type) {
 	case birthdayGet:
-		bt, _ = storage.BirthdayToTime(v.Pet.Birthday)
+		bt, _ = storage.BirthdayToTime(nil, v.Pet.Birthday)
 	case birthdays:
 		var p *pb.Pet
 		for _, p = range v {
 			break
 		}
-		bt, _ = storage.BirthdayToTime(p.Birthday)
+		bt, _ = storage.BirthdayToTime(nil, p.Birthday)
 	}
 
 	switch {
@@ -112,13 +113,37 @@ func (d *Data) AddPets(ctx context.Context, pets []*pb.Pet) error {
 	// Make sure that none of these IDs somehow exist already.
 	for _, p := range pets {
 		if _, ok := d.ids[p.Id]; ok {
-			return fmt.Errorf("pet with ID(%s) is already present", p.Id)
+			return errors.Errorf(ctx, "pet with ID(%s) is already present", p.Id)
 		}
 	}
 	d.mu.RUnlock()
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	d.populate(pets)
+	return nil
+}
+
+// UpdatePets implements storage.Data.AddPets().
+func (d *Data) UpdatePets(ctx context.Context, pets []*pb.Pet) error {
+	d.mu.RLock()
+	// Make sure that ALL of these IDs somehow exist already.
+	for _, p := range pets {
+		if _, ok := d.ids[p.Id]; !ok {
+			return errors.Errorf(ctx, "pet with ID(%s) doesn't exist", p.Id)
+		}
+	}
+	d.mu.RUnlock()
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.populate(pets)
+	return nil
+}
+
+func (d *Data) populate(pets []*pb.Pet) {
 	for _, p := range pets {
 		d.ids[p.Id] = p
 		if v, ok := d.names[p.Name]; ok {
@@ -142,7 +167,6 @@ func (d *Data) AddPets(ctx context.Context, pets []*pb.Pet) error {
 		}
 		v.(birthdays)[p.Id] = p
 	}
-	return nil
 }
 
 // DeletePets implements stroage.Data.DeletePets().

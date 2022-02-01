@@ -6,13 +6,17 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/storage"
+
 	"github.com/kylelemons/godebug/pretty"
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/proto"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/server/storage"
 	dpb "google.golang.org/genproto/googleapis/type/date"
-	"google.golang.org/protobuf/proto"
 )
+
+// This tests we implement the interface.
+var _ storage.Data = &Data{}
 
 var pets = []*pb.Pet{
 	{
