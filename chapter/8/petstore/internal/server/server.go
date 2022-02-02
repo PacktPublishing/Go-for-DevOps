@@ -7,24 +7,64 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/errors"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/storage"
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/telemetry"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/telemetry/metrics"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/telemetry/tracing"
 
-	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/proto"
 )
+
+// These represent all of our OTEL metric counters.
+var (
+	totalCount, addCount, deleteCount, updateCount, searchCount metric.Int64Counter
+
+	addCurrent, deleteCurrent, updateCurrent, searchCurrent metric.Int64UpDownCounter
+
+	addLat, deleteLat, updateLat, searchLat metric.Int64Histogram
+
+	addErrors, deleteErrors, updateErrors, searchErrors metric.Int64Counter
+)
+
+// This fetches all of our counters. You can only do this in init().
+func init() {
+	totalCount = metrics.Get.Int64("petstore/server/totals/requests")
+	addCount = metrics.Get.Int64("petstore/server/AddPets/requests")
+	deleteCount = metrics.Get.Int64("petstore/server/DeletePets/requests")
+	updateCount = metrics.Get.Int64("petstore/server/UpdatePets/requests")
+	searchCount = metrics.Get.Int64("petstore/server/SearchPets/requests")
+
+	addCurrent = metrics.Get.Int64UD("petstore/server/AddPets/current")
+	deleteCurrent = metrics.Get.Int64UD("petstore/server/DeletePets/current")
+	updateCurrent = metrics.Get.Int64UD("petstore/server/UpdatePets/current")
+	searchCurrent = metrics.Get.Int64UD("petstore/server/SearchPets/current")
+
+	addErrors = metrics.Get.Int64("petstore/server/AddPets/errors")
+	deleteErrors = metrics.Get.Int64("petstore/server/DeletePets/errors")
+	updateErrors = metrics.Get.Int64("petstore/server/UpdatePets/errors")
+	searchErrors = metrics.Get.Int64("petstore/server/SearchPets/errors")
+
+	addLat = metrics.Get.Int64Hist("petstore/server/AddPets/latency")
+	deleteLat = metrics.Get.Int64Hist("petstore/server/DeletePets/latency")
+	updateLat = metrics.Get.Int64Hist("petstore/server/UpdatePets/latency")
+	searchLat = metrics.Get.Int64Hist("petstore/server/SearchPets/latency")
+}
 
 // API implements our gRPC server's API.
 type API struct {
@@ -58,6 +98,7 @@ func New(addr string, store storage.Data, options ...Option) (*API, error) {
 
 	a.grpcServer = grpc.NewServer(a.gOpts...)
 	a.grpcServer.RegisterService(&pb.PetStore_ServiceDesc, a)
+	reflection.Register(a.grpcServer)
 
 	return a, nil
 }
@@ -85,9 +126,33 @@ func (a *API) Stop() {
 
 // AddPets adds pets to the pet store.
 func (a *API) AddPets(ctx context.Context, req *pb.AddPetsReq) (resp *pb.AddPetsResp, err error) {
+	// Handle tracing.
 	ctx, _, end := doTrace(ctx, "server.AddPets()", req)
 	defer func() { end(err) }()
 
+	// Handle metrics.
+	metrics.Meter.RecordBatch(
+		ctx,
+		nil,
+		totalCount.Measurement(1),
+		addCount.Measurement(1),
+		addCurrent.Measurement(1),
+	)
+	t := time.Now()
+	defer func() {
+		metrics.Meter.RecordBatch(
+			ctx,
+			nil,
+			addCurrent.Measurement(-1),
+			addLat.Measurement(int64(time.Since(t))),
+		)
+		if err != nil {
+			code := status.Code(err)
+			addErrors.Add(ctx, 1, attribute.String("code", code.String()))
+		}
+	}()
+
+	// Actual work.
 	ids := make([]string, 0, len(req.Pets))
 	for _, p := range req.Pets {
 		if err := storage.ValidatePet(ctx, p, false); err != nil {
@@ -108,6 +173,28 @@ func (a *API) UpdatePets(ctx context.Context, req *pb.UpdatePetsReq) (resp *pb.U
 	ctx, _, end := doTrace(ctx, "server.UpdatePets()", req)
 	defer func() { end(err) }()
 
+	// Handle metrics.
+	metrics.Meter.RecordBatch(
+		ctx,
+		nil,
+		totalCount.Measurement(1),
+		updateCount.Measurement(1),
+		updateCurrent.Measurement(1),
+	)
+	t := time.Now()
+	defer func() {
+		metrics.Meter.RecordBatch(
+			ctx,
+			nil,
+			updateCurrent.Measurement(-1),
+			updateLat.Measurement(int64(time.Since(t))),
+		)
+		if err != nil {
+			code := status.Code(err)
+			addErrors.Add(ctx, 1, attribute.String("code", code.String()))
+		}
+	}()
+
 	for _, p := range req.Pets {
 		if err = storage.ValidatePet(ctx, p, true); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -125,6 +212,28 @@ func (a *API) DeletePets(ctx context.Context, req *pb.DeletePetsReq) (resp *pb.D
 	ctx, _, end := doTrace(ctx, "server.DeletePets()", req)
 	defer func() { end(err) }()
 
+	// Handle metrics.
+	metrics.Meter.RecordBatch(
+		ctx,
+		nil,
+		totalCount.Measurement(1),
+		deleteCount.Measurement(1),
+		deleteCurrent.Measurement(1),
+	)
+	t := time.Now()
+	defer func() {
+		metrics.Meter.RecordBatch(
+			ctx,
+			nil,
+			deleteCurrent.Measurement(-1),
+			deleteLat.Measurement(int64(time.Since(t))),
+		)
+		if err != nil {
+			code := status.Code(err)
+			addErrors.Add(ctx, 1, attribute.String("code", code.String()))
+		}
+	}()
+
 	if err = a.store.DeletePets(ctx, req.Ids); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -135,6 +244,28 @@ func (a *API) DeletePets(ctx context.Context, req *pb.DeletePetsReq) (resp *pb.D
 func (a *API) SearchPets(req *pb.SearchPetsReq, stream pb.PetStore_SearchPetsServer) (err error) {
 	ctx, _, end := doTrace(stream.Context(), "server.SearchPets()", req)
 	defer func() { end(err) }()
+
+	// Handle metrics.
+	metrics.Meter.RecordBatch(
+		ctx,
+		nil,
+		totalCount.Measurement(1),
+		searchCount.Measurement(1),
+		searchCurrent.Measurement(1),
+	)
+	t := time.Now()
+	defer func() {
+		metrics.Meter.RecordBatch(
+			ctx,
+			nil,
+			searchCurrent.Measurement(-1),
+			searchLat.Measurement(int64(time.Since(t))),
+		)
+		if err != nil {
+			code := status.Code(err)
+			addErrors.Add(ctx, 1, attribute.String("code", code.String()))
+		}
+	}()
 
 	if err = validateSearch(ctx, req); err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())
@@ -161,16 +292,16 @@ func (a *API) ChangeSampler(ctx context.Context, req *pb.ChangeSamplerReq) (resp
 	case pb.SamplerType_STUnknown:
 		// Skip, will return an error
 	case pb.SamplerType_STNever:
-		telemetry.Sampler.Switch(sdkTrace.NeverSample())
+		tracing.Sampler.Switch(sdkTrace.NeverSample())
 		return &pb.ChangeSamplerResp{}, nil
 	case pb.SamplerType_STAlways:
-		telemetry.Sampler.Switch(sdkTrace.AlwaysSample())
+		tracing.Sampler.Switch(sdkTrace.AlwaysSample())
 		return &pb.ChangeSamplerResp{}, nil
 	case pb.SamplerType_STFloat:
 		if req.FloatValue <= 0 || req.FloatValue > 1 {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("float_value=%v is invalid", req.FloatValue))
 		}
-		telemetry.Sampler.Switch(sdkTrace.TraceIDRatioBased(req.FloatValue))
+		tracing.Sampler.Switch(sdkTrace.TraceIDRatioBased(req.FloatValue))
 		return &pb.ChangeSamplerResp{}, nil
 	}
 	return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("type==%v is invalid", req.Type))
@@ -201,7 +332,7 @@ func validateSearch(ctx context.Context, r *pb.SearchPetsReq) error {
 }
 
 func doTrace(ctx context.Context, name string, req proto.Message) (newCtx context.Context, span trace.Span, end func(err error)) {
-	ctx, span = telemetry.Tracer.Start(
+	ctx, span = tracing.Tracer.Start(
 		ctx,
 		name,
 		trace.WithAttributes(
@@ -221,10 +352,33 @@ func doTrace(ctx context.Context, name string, req proto.Message) (newCtx contex
 		}
 	}
 
+	// If they asked for a trace, send back the trace ID.
+	if ctx.Value("trace") != nil {
+		id := span.SpanContext().TraceID().String()
+		if id != "" {
+			header := metadata.Pairs("traceID", convertTraceID(id))
+			grpc.SendHeader(ctx, header)
+		}
+	}
+
 	return ctx, span, func(err error) {
 		if err != nil {
 			span.SetAttributes(attribute.String("rpcError", err.Error()))
 		}
 		span.End()
 	}
+}
+
+func convertTraceID(id string) string {
+	if len(id) < 16 {
+		return ""
+	}
+	if len(id) > 16 {
+		id = id[16:]
+	}
+	intValue, err := strconv.ParseUint(id, 16, 64)
+	if err != nil {
+		return ""
+	}
+	return strconv.FormatUint(intValue, 10)
 }

@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/storage"
-	"go.opentelemetry.io/otel/baggage"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/proto"
 )
@@ -59,20 +59,31 @@ func (p Pet) Error() error {
 	return p.err
 }
 
+// CallOptions are optional options for an RPC call.
+type CallOption func(co *callOptions)
+
+type callOptions struct {
+	trace *string
+}
+
+// TraceID will cause the RPC call to execute a trace on the service and return "s" to the ID.
+// If s == nil, this will ignore the option. If "s" is not set after the call finishes, then
+// no trace was made.
+func TraceID(s *string) CallOption {
+	return func(co *callOptions) {
+		if s == nil {
+			return
+		}
+		co.trace = s
+	}
+}
+
 // AddPets adds pets to the service and returns their unique identities in the
 // same order as being added.
-func (c *Client) AddPets(ctx context.Context, pets []*pb.Pet) ([]string, error) {
+func (c *Client) AddPets(ctx context.Context, pets []*pb.Pet, options ...CallOption) ([]string, error) {
 	if len(pets) == 0 {
 		return nil, nil
 	}
-
-	/*
-		method, _ := baggage.NewMember("method", "repl")
-		client, _ := baggage.NewMember("client", "cli")
-		bag, _ := baggage.New(method, client)
-	*/
-
-	defaultCtx := baggage.ContextWithBaggage(context.Background(), bag)
 
 	for _, p := range pets {
 		if err := storage.ValidatePet(ctx, p, false); err != nil {
@@ -80,7 +91,11 @@ func (c *Client) AddPets(ctx context.Context, pets []*pb.Pet) ([]string, error) 
 		}
 	}
 
-	resp, err := c.client.AddPets(ctx, &pb.AddPetsReq{Pets: pets})
+	var header metadata.MD
+	ctx, gOpts, f := handleCallOptions(ctx, &header, options)
+	defer f()
+
+	resp, err := c.client.AddPets(ctx, &pb.AddPetsReq{Pets: pets}, gOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,18 +103,10 @@ func (c *Client) AddPets(ctx context.Context, pets []*pb.Pet) ([]string, error) 
 }
 
 // UpdatePets updates pets that already exist in the system.
-func (c *Client) UpdatePets(ctx context.Context, pets []*pb.Pet) error {
+func (c *Client) UpdatePets(ctx context.Context, pets []*pb.Pet, options ...CallOption) error {
 	if len(pets) == 0 {
 		return nil
 	}
-
-	/*
-		method, _ := baggage.NewMember("method", "repl")
-		client, _ := baggage.NewMember("client", "cli")
-		bag, _ := baggage.New(method, client)
-	*/
-
-	defaultCtx := baggage.ContextWithBaggage(context.Background(), bag)
 
 	for _, p := range pets {
 		if err := storage.ValidatePet(ctx, p, true); err != nil {
@@ -107,7 +114,11 @@ func (c *Client) UpdatePets(ctx context.Context, pets []*pb.Pet) error {
 		}
 	}
 
-	resp, err := c.client.UpdatePets(ctx, &pb.UpdatePetsReq{Pets: pets})
+	var header metadata.MD
+	ctx, gOpts, f := handleCallOptions(ctx, &header, options)
+	defer f()
+
+	_, err := c.client.UpdatePets(ctx, &pb.UpdatePetsReq{Pets: pets}, gOpts...)
 	if err != nil {
 		return err
 	}
@@ -116,12 +127,16 @@ func (c *Client) UpdatePets(ctx context.Context, pets []*pb.Pet) error {
 
 // DeletePets deletes pets with the IDs passed. If the ID doesn't exist, the
 // system ignores it.
-func (c *Client) DeletePets(ctx context.Context, ids []string) error {
+func (c *Client) DeletePets(ctx context.Context, ids []string, options ...CallOption) error {
 	if len(ids) == 0 {
 		return nil
 	}
 
-	_, err := c.client.DeletePets(ctx, &pb.DeletePetsReq{Ids: ids})
+	var header metadata.MD
+	ctx, gOpts, f := handleCallOptions(ctx, &header, options)
+	defer f()
+
+	_, err := c.client.DeletePets(ctx, &pb.DeletePetsReq{Ids: ids}, gOpts...)
 	if err != nil {
 		return err
 	}
@@ -130,18 +145,23 @@ func (c *Client) DeletePets(ctx context.Context, ids []string) error {
 
 // SearchPets searches the pet store for pets matching the filter. If the filter contains
 // no entries, then all pets will be returned.
-func (c *Client) SearchPets(ctx context.Context, filter *pb.SearchPetsReq) (chan Pet, error) {
+func (c *Client) SearchPets(ctx context.Context, filter *pb.SearchPetsReq, options ...CallOption) (chan Pet, error) {
 	if filter == nil {
 		return nil, fmt.Errorf("the filter cannot be nil")
 	}
 
-	stream, err := c.client.SearchPets(ctx, filter)
+	var header metadata.MD
+	ctx, gOpts, f := handleCallOptions(ctx, &header, options)
+
+	stream, err := c.client.SearchPets(ctx, filter, gOpts...)
 	if err != nil {
 		return nil, err
 	}
 	ch := make(chan Pet, 1)
 	go func() {
 		defer close(ch)
+		defer f()
+
 		for {
 			p, err := stream.Recv()
 			if err == io.EOF {
@@ -155,4 +175,27 @@ func (c *Client) SearchPets(ctx context.Context, filter *pb.SearchPetsReq) (chan
 		}
 	}()
 	return ch, nil
+}
+
+func handleCallOptions(ctx context.Context, header *metadata.MD, options []CallOption) (context.Context, []grpc.CallOption, func()) {
+	opts := callOptions{}
+	for _, o := range options {
+		o(&opts)
+	}
+	var gOpts []grpc.CallOption
+
+	if opts.trace != nil {
+		ctx = context.WithValue(ctx, "trace", "")
+		gOpts = append(gOpts, grpc.Header(header))
+	}
+
+	f := func() {
+		if opts.trace != nil {
+			if len((*header)["otel.traceID"]) != 0 {
+				*opts.trace = (*header)["otel.traceID"][0]
+			}
+		}
+	}
+
+	return ctx, gOpts, f
 }

@@ -1,28 +1,23 @@
 /*
-Package telemetry provides functions for starting and stopping our Open Telemetry tracing.
-This package is intended to be used from main and is simple to use:
-	var otelAddr = flag.String("otelAddr", "", "The address for our OpenTelemetry agent. If not set, looks for Env variable 'OTEL_EXPORTER_OTLP_ENDPOINT'. If not set defaults to 0.0.0:4317")
-
-	func init() {
-		if *otelAddr == "" {
-			addr, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
-			if !ok {
-				addr = "0.0.0.0:4317"
-			}
-			*otelAddr = addr
-		}
-	}
-
+Package tracing provides functions for starting and stopping our Open Telemetry tracing.
+This package is intended to be used from main and is simple to use. We offer a few
+choices on where traces export to. Here is an example to trace to stderr for all requests:
 	func main() {
 		ctx := context.Background()
-		stop, err := telemetry.Start(ctx, *otelAddr)
+		// Set us up to always sample. The "trace" package is: "petstore/server/SearchPets/latency"
+		tracing.Sampler.Switch(trace.AlwaysSample())
+		// Start our tracing and pass the empty Stderr tracing arguments.
+		// Stderr{} has no required fields.
+		stop, err := tracing.Start(ctx, tracing.Stderr{})
 		if err != nil {
 			log.Fatalf("problem starting telemetry: %s", err)
 		}
+
+		// Stop kills our exporter when main() ends.
 		defer stop()
 	}
 */
-package telemetry
+package tracing
 
 import (
 	"context"
@@ -31,7 +26,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/telemetry/sampler"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/telemetry/tracing/sampler"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -129,9 +124,8 @@ func newTraceExporter(ctx context.Context, e Exporter) (sdktrace.SpanExporter, e
 			return nil, err
 		}
 		return newFileExporter(f)
-	default:
-		return nil, fmt.Errorf("%T is not a valid Exporter", e)
 	}
+	return nil, fmt.Errorf("%T is not a valid Exporter", e)
 }
 
 func otelGRPC(ctx context.Context, e OTELGRPC) (*otlptrace.Exporter, error) {
