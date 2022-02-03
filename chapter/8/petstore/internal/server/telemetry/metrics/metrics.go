@@ -97,7 +97,7 @@ var Get = newLookups()
 
 var unusedMetricsTmpl = template.Must(
 	template.New("").Parse(
-`
+		`
 The following metrics appeart to be unused:
 {{- range .}}
 	{{.}}
@@ -120,7 +120,7 @@ func newLookups() *Lookups {
 	l := &Lookups{
 		mtInt64Hist: map[string]metric.Int64Histogram{},
 		mtInt64:     map[string]metric.Int64Counter{},
-		mtInt64UD: map[string]metric.Int64UpDownCounter{},
+		mtInt64UD:   map[string]metric.Int64UpDownCounter{},
 		used:        map[string]bool{},
 	}
 
