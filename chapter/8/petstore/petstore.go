@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"strconv"
+	stdlog "log"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/log"
@@ -18,7 +19,7 @@ import (
 
 // General service flags.
 var (
-	addr = flag.String("addr", "127.0.0.1:6742", "The address to run the service on.")
+	addr = flag.String("addr", "0.0.0.0:6742", "The address to run the service on.")
 )
 
 // Flags are related to OTEL tracing.
@@ -62,7 +63,7 @@ func otelExporter() tracing.Exporter {
 	case *grpcTraces:
 		return tracing.OTELGRPC{Addr: *otelAddr}
 	}
-	return nil
+	return tracing.Stderr{}
 }
 
 // otelController is similar to otelExporter except it sets up arguments for metric
@@ -103,12 +104,16 @@ func tooManyTrue(truths ...interface{}) bool {
 			if v && set {
 				return true
 			}
-			set = true
+			if v {
+				set = true
+			}
 		case string:
 			if v != "" && set {
 				return true
 			}
-			set = true
+			if v != "" {
+				set = true
+			}
 		default:
 			panic("not a bool or string")
 		}
@@ -118,7 +123,16 @@ func tooManyTrue(truths ...interface{}) bool {
 
 func main() {
 	flag.Parse()
+	log.Logger.Println("Flags values")
+	log.Logger.Println("-----------------------------------")
+	flag.VisitAll(func(f *flag.Flag) {
+		log.Logger.Printf("%s: %s\n", f.Name, f.Value)
+	})
+	log.Logger.Println("-----------------------------------")
+
+	stdlog.SetFlags(stdlog.LstdFlags | stdlog.Lshortfile)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.Logger.SetFlags(stdlog.LstdFlags | stdlog.Lshortfile)
 
 	ctx := context.Background()
 

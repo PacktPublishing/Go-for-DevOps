@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/telemetry/tracing/sampler"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -42,7 +43,7 @@ import (
 // Tracer is the tracer initialized by Start().
 var (
 	// Tracer is the tracer initialized by Start().
-	Tracer trace.Tracer
+	Tracer trace.Tracer // *sdktrace.TracerProvider //otlptrace.Exporter
 	// Sampler is our *sampler.Sampler used by the Tracer.
 	Sampler *sampler.Sampler
 )
@@ -87,58 +88,40 @@ type Stop func()
 // Start creates the OTEL exporter and configures the trace providers.
 // It returns a Stop() which will stop the exporter.
 func Start(ctx context.Context, e Exporter) (Stop, error) {
-	tracer, err := newTraceExporter(ctx, e)
+	tp, err := newTraceExporter(ctx, e)
 	if err != nil {
 		return nil, err
 	}
+	Tracer = tp.Tracer("petstore")
 
 	return func() {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 1*time.Second)
 		defer cancel()
 
-		if err := tracer.Shutdown(ctx); err != nil {
+		if err := tp.Shutdown(ctx); err != nil {
 			otel.Handle(err)
 		}
 	}, nil
 }
 
-// newFileExporter creates an exporter that writes to a file.
-func newFileExporter(w io.Writer) (sdktrace.SpanExporter, error) {
-	return stdouttrace.New(
-		stdouttrace.WithWriter(w),
-		stdouttrace.WithPrettyPrint(),
-	)
-}
-
 // newTracerExporter creates an OTLP exporter with our tracer information.
-func newTraceExporter(ctx context.Context, e Exporter) (sdktrace.SpanExporter, error) {
+func newTraceExporter(ctx context.Context, e Exporter) (*sdktrace.TracerProvider, error) {
+	var exp sdktrace.SpanExporter
+	var err error
 	switch v := e.(type) {
 	case OTELGRPC:
-		return otelGRPC(ctx, v)
+		exp, err = otelGRPC(ctx, v)
 	case Stderr:
-		return newFileExporter(os.Stderr)
+		exp, err = newFileExporter(os.Stderr)
 	case File:
 		f, err := os.Create(v.Path)
 		if err != nil {
 			return nil, err
 		}
-		return newFileExporter(f)
-	}
-	return nil, fmt.Errorf("%T is not a valid Exporter", e)
-}
-
-func otelGRPC(ctx context.Context, e OTELGRPC) (*otlptrace.Exporter, error) {
-	exp, err := otlptrace.New(
-		ctx,
-		otlptracegrpc.NewClient(
-			otlptracegrpc.WithInsecure(),
-			otlptracegrpc.WithEndpoint(e.Addr),
-			otlptracegrpc.WithDialOption(grpc.WithBlock()),
-		),
-	)
-	if err != nil {
-		return nil, err
+		exp, err = newFileExporter(f)
+	default:
+		return nil, fmt.Errorf("%T is not a valid Exporter", e)
 	}
 
 	res, err := resource.New(
@@ -158,12 +141,35 @@ func otelGRPC(ctx context.Context, e OTELGRPC) (*otlptrace.Exporter, error) {
 
 	// set global propagator to tracecontext (the default is no-op).
 	otel.SetTextMapPropagator(propagation.TraceContext{})
-	otel.SetTracerProvider(
-		sdktrace.NewTracerProvider(
-			sdktrace.WithSampler(Sampler),
-			sdktrace.WithResource(res),
-			sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exp)),
+
+	prov := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(prov)
+	return prov, nil
+}
+
+// newFileExporter creates an exporter that writes to a file.
+func newFileExporter(w io.Writer) (sdktrace.SpanExporter, error) {
+	return stdouttrace.New(
+		stdouttrace.WithWriter(w),
+		stdouttrace.WithPrettyPrint(),
+	)
+}
+
+func otelGRPC(ctx context.Context, e OTELGRPC) (sdktrace.SpanExporter, error) { //(*otlptrace.Exporter, error) {
+	exp, err := otlptrace.New(
+		ctx,
+		otlptracegrpc.NewClient(
+			otlptracegrpc.WithInsecure(),
+			otlptracegrpc.WithEndpoint(e.Addr),
+			otlptracegrpc.WithDialOption(grpc.WithBlock()),
 		),
 	)
+	if err != nil {
+		return nil, err
+	}
+
 	return exp, nil
 }
