@@ -55,14 +55,23 @@ func New(child trace.Sampler) (*Sampler, error) {
 
 // ShouldSample implements trace.Sampler.ShouldSample.
 func (s *Sampler) ShouldSample(p trace.SamplingParameters) trace.SamplingResult {
-	if p.TraceID.IsValid() {
-		psc := otelTrace.SpanContextFromContext(p.ParentContext)
-		return trace.SamplingResult{
-			Decision:   trace.RecordAndSample,
-			Tracestate: psc.TraceState(),
+	psc := otelTrace.SpanContextFromContext(p.ParentContext)
+	if psc.IsValid() {
+		if psc.IsRemote() {
+			if psc.IsSampled() {
+				return trace.SamplingResult{
+					Decision:   trace.RecordAndSample,
+					Tracestate: psc.TraceState(),
+				}
+			}
+		}
+		if psc.IsSampled() {
+			return trace.SamplingResult{
+				Decision:   trace.RecordAndSample,
+				Tracestate: psc.TraceState(),
+			}
 		}
 	}
-
 	md, ok := metadata.FromIncomingContext(p.ParentContext)
 	if !ok {
 		return (*s.child.Load().(*trace.Sampler)).ShouldSample(p)

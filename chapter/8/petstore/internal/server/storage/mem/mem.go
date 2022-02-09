@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/errors"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/log"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/storage"
 
 	"github.com/biogo/store/llrb"
@@ -219,22 +220,29 @@ func (d *Data) SearchPets(ctx context.Context, filter *pb.SearchPetsReq) chan st
 }
 
 func (d *Data) searchPets(ctx context.Context, filter *pb.SearchPetsReq, out chan storage.SearchItem) {
+	e := log.NewEvent("mem.data.searchPets()")
+	defer e.Done(ctx)
+
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
 	filters := 0
 	if len(filter.Names) > 0 {
+		e.Add("filterNames", true)
 		filters++
 	}
 	if len(filter.Types) > 0 {
+		e.Add("filterTypes", true)
 		filters++
 	}
 	if filter.BirthdateRange != nil {
+		e.Add("filterBirthday", true)
 		filters++
 	}
 
 	// They didn't provide filters, so just return everything.
 	if filters == 0 {
+		e.Add("returnAll", true)
 		d.returnAll(ctx, out)
 		return
 	}
@@ -243,8 +251,10 @@ func (d *Data) searchPets(ctx context.Context, filter *pb.SearchPetsReq, out cha
 	wg := sync.WaitGroup{}
 	wg.Add(len(d.searches))
 
+	goCount := 0
 	// Spin off our searches.
 	for _, search := range d.searches {
+		goCount++
 		search := search
 		go func() {
 			defer wg.Done()
@@ -255,6 +265,8 @@ func (d *Data) searchPets(ctx context.Context, filter *pb.SearchPetsReq, out cha
 			}
 		}()
 	}
+	e.Add("search.goroutines", goCount)
+
 	// Wait for our searches to complete then close our searchCh.
 	go func() { wg.Wait(); close(searchCh) }()
 
@@ -277,6 +289,14 @@ func (d *Data) searchPets(ctx context.Context, filter *pb.SearchPetsReq, out cha
 	}()
 
 	// This handles all our matches getting returned.
+	valCount := 0
+	latency := 0
+	defer func() {
+		if valCount > 0 {
+			e.Add("upstream.recv.latency.avg.ns", latency/valCount)
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -285,14 +305,28 @@ func (d *Data) searchPets(ctx context.Context, filter *pb.SearchPetsReq, out cha
 			if !ok {
 				return
 			}
+			start := time.Now()
 			out <- storage.SearchItem{Pet: d.ids[id]}
+			valCount++
+			latency += int(time.Since(start))
 		}
 	}
 }
 
 // returnAll streams all the pets that we have.
 func (d *Data) returnAll(ctx context.Context, out chan storage.SearchItem) {
+	e := log.NewEvent("mem.data.returnAll()")
+	defer e.Done(ctx)
+
+	start := time.Now()
+	count := 0
+	defer func() {
+		e.Add("latency.ns", int(time.Since(start)))
+		e.Add("count", count)
+	}()
+
 	for _, p := range d.ids {
+		count++
 		select {
 		case <-ctx.Done():
 			return
@@ -303,8 +337,22 @@ func (d *Data) returnAll(ctx context.Context, out chan storage.SearchItem) {
 
 // byNames returns IDs of pets that have the names matched in the filter.
 func (d *Data) byNames(ctx context.Context, filter *pb.SearchPetsReq) []string {
+	if len(filter.Names) == 0 {
+		return nil
+	}
+
+	e := log.NewEvent("mem.data.byNames()")
+	defer e.Done(ctx)
+
+	start := time.Now()
+	count := 0
+	defer func() {
+		e.Add("latency.ns", int(time.Since(start)))
+		e.Add("count", count)
+	}()
 	var ids []string
 	for _, n := range filter.Names {
+		count++
 		if ctx.Err() != nil {
 			return nil
 		}
@@ -321,8 +369,21 @@ func (d *Data) byNames(ctx context.Context, filter *pb.SearchPetsReq) []string {
 
 // byTypes returns IDs of pets that have the types matched in the filter.
 func (d *Data) byTypes(ctx context.Context, filter *pb.SearchPetsReq) []string {
+	if len(filter.Types) == 0 {
+		return nil
+	}
+	e := log.NewEvent("mem.data.byTypes()")
+	defer e.Done(ctx)
+
+	start := time.Now()
+	count := 0
+	defer func() {
+		e.Add("latency.ns", int(time.Since(start)))
+		e.Add("count", count)
+	}()
 	var ids []string
 	for _, t := range filter.Types {
+		count++
 		if ctx.Err() != nil {
 			return nil
 		}
@@ -343,6 +404,16 @@ func (d *Data) byBirthdays(ctx context.Context, filter *pb.SearchPetsReq) []stri
 		return nil
 	}
 
+	e := log.NewEvent("mem.data.byBirthdays()")
+	defer e.Done(ctx)
+
+	start := time.Now()
+	count := 0
+	defer func() {
+		e.Add("latency.ns", int(time.Since(start)))
+		e.Add("byBirthdays.count", count)
+	}()
+
 	var ids []string
 	d.birthday.DoRange(
 		func(c llrb.Comparable) (done bool) {
@@ -360,5 +431,6 @@ func (d *Data) byBirthdays(ctx context.Context, filter *pb.SearchPetsReq) []stri
 	if ctx.Err() != nil {
 		return nil
 	}
+	count = len(ids)
 	return ids
 }

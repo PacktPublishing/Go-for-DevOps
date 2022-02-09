@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
+	otelCodes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -242,8 +243,13 @@ func (a *API) DeletePets(ctx context.Context, req *pb.DeletePetsReq) (resp *pb.D
 
 // SearchPets finds pets in the pet store.
 func (a *API) SearchPets(req *pb.SearchPetsReq, stream pb.PetStore_SearchPetsServer) (err error) {
-	ctx, _, end := doTrace(stream.Context(), "server.SearchPets()", req)
+	count := 0
+
+	ctx, span, end := doTrace(stream.Context(), "server.SearchPets()", req)
 	defer func() { end(err) }()
+	defer func() {
+		span.SetAttributes(attribute.Int("search.results.returned", count))
+	}()
 
 	// Handle metrics.
 	metrics.Meter.RecordBatch(
@@ -273,6 +279,7 @@ func (a *API) SearchPets(req *pb.SearchPetsReq, stream pb.PetStore_SearchPetsSer
 
 	ch := a.store.SearchPets(ctx, req)
 	for item := range ch {
+		count++
 		if item.Error != nil {
 			return status.Error(codes.Internal, item.Error.Error())
 		}
@@ -363,8 +370,11 @@ func doTrace(ctx context.Context, name string, req proto.Message) (newCtx contex
 
 	return ctx, span, func(err error) {
 		if err != nil {
-			span.SetAttributes(attribute.String("rpcError", err.Error()))
+			span.SetStatus(otelCodes.Error, err.Error())
+			span.End()
+			return
 		}
+		span.SetStatus(otelCodes.Ok, "")
 		span.End()
 	}
 }

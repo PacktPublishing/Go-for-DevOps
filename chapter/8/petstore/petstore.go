@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	stdlog "log"
 	"os"
 	"strconv"
-	stdlog "log"
 
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server"
 	"github.com/PacktPublishing/Go-for-DevOps/chapter/8/petstore/internal/server/log"

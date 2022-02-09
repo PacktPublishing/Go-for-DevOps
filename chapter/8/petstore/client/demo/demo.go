@@ -18,9 +18,8 @@ var namesFile string
 func main() {
 	names := strings.Split(namesFile, "\n")
 
-	log.Println("wait 5 seconds")
-	time.Sleep(5 * time.Second)
-	c, err := client.New("0.0.0.0:6742")
+	time.Sleep(1 * time.Second)
+	c, err := client.New("demo-server:6742")
 	if err != nil {
 		panic(err)
 	}
@@ -31,6 +30,9 @@ func main() {
 	ctx := context.Background()
 
 	for _, name := range names {
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
 		ids, err := c.AddPets(
 			ctx,
 			[]*pb.Pet{
@@ -55,6 +57,6 @@ func main() {
 			t = 1
 		}
 		start.Add(24 * time.Hour)
-		time.Sleep(1 * time.Minute)
+		time.Sleep(500 * time.Millisecond)
 	}
 }

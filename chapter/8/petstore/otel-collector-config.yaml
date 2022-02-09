@@ -23,8 +23,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, jaeger]
+      exporters: [jaeger]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, prometheus]
+      exporters: [prometheus]

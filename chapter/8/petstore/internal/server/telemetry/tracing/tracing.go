@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -49,7 +50,7 @@ var (
 )
 
 func init() {
-	s, err := sampler.New(sdktrace.TraceIDRatioBased(.01))
+	s, err := sampler.New(sdktrace.TraceIDRatioBased(1))
 	if err != nil {
 		panic(err)
 	}
@@ -88,6 +89,7 @@ type Stop func()
 // Start creates the OTEL exporter and configures the trace providers.
 // It returns a Stop() which will stop the exporter.
 func Start(ctx context.Context, e Exporter) (Stop, error) {
+	log.Println("Sampler: ", Sampler)
 	tp, err := newTraceExporter(ctx, e)
 	if err != nil {
 		return nil, err
@@ -143,6 +145,7 @@ func newTraceExporter(ctx context.Context, e Exporter) (*sdktrace.TracerProvider
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	prov := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(Sampler),
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(res),
 	)
