@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,7 +11,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -25,8 +22,16 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Initializes an OTLP exporter, and configures the corresponding trace providers.
-func initProvider() func() {
+// main sets up the trace and metrics providers and starts a loop to continuously call the server
+func main() {
+	shutdown := initTraceAndMetricsProvider()
+	defer shutdown()
+
+	continuouslySendRequests()
+}
+
+// initTraceAndMetricsProvider initializes an OTLP exporter, and configures the corresponding trace provider.
+func initTraceAndMetricsProvider() func() {
 	ctx := context.Background()
 
 	otelAgentAddr, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
@@ -34,17 +39,18 @@ func initProvider() func() {
 		otelAgentAddr = "0.0.0.0:4317"
 	}
 
-	traceExp := initTracer(ctx, otelAgentAddr)
+	closeTraces := initTracer(ctx, otelAgentAddr)
+
 	return func() {
-		cxt, cancel := context.WithTimeout(ctx, time.Second)
+		doneCtx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
-		if err := traceExp.Shutdown(cxt); err != nil {
-			otel.Handle(err)
-		}
+		// pushes any last exports to the receiver
+		closeTraces(doneCtx)
 	}
 }
 
-func initTracer(ctx context.Context, otelAgentAddr string) *otlptrace.Exporter {
+// initTracer initializes an OTLP trace exporter and registers the trace provider with the global context
+func initTracer(ctx context.Context, otelAgentAddr string) func(context.Context) {
 	traceClient := otlptracegrpc.NewClient(
 		otlptracegrpc.WithInsecure(),
 		otlptracegrpc.WithEndpoint(otelAgentAddr),
@@ -74,46 +80,37 @@ func initTracer(ctx context.Context, otelAgentAddr string) *otlptrace.Exporter {
 	// set global propagator to tracecontext (the default is no-op).
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 	otel.SetTracerProvider(tracerProvider)
-	return traceExp
+
+	return func(doneCtx context.Context) {
+		if err := traceExp.Shutdown(doneCtx); err != nil {
+			otel.Handle(err)
+		}
+	}
 }
 
+// handleErr provides a simple way to handle errors and messages
 func handleErr(err error, message string) {
 	if err != nil {
 		log.Fatalf("%s: %v", message, err)
 	}
 }
 
-func main() {
-	shutdown := initProvider()
-	defer shutdown()
-
+// continuouslySendRequests continuously sends requests to the server sleeping for a second after each request.
+func continuouslySendRequests() {
 	tracer := otel.Tracer("demo-client-tracer")
 
-	method, _ := baggage.NewMember("method", "repl")
-	client, _ := baggage.NewMember("client", "cli")
-	bag, _ := baggage.New(method, client)
-
-	defaultCtx := baggage.ContextWithBaggage(context.Background(), bag)
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for {
-		startTime := time.Now()
-		ctx, span := tracer.Start(defaultCtx, "ExecuteRequest")
+		ctx, span := tracer.Start(context.Background(), "ExecuteRequest")
 		makeRequest(ctx)
 		SuccessfullyFinishedRequestEvent(span)
 		span.End()
-		latencyMs := float64(time.Since(startTime)) / 1e6
-		nr := int(rng.Int31n(7))
-		for i := 0; i < nr; i++ {
-			randLineLength := rng.Int63n(999)
-			fmt.Printf("#%d: LineLength: %dBy\n", i, randLineLength)
-		}
-
-		fmt.Printf("Latency: %.3fms\n", latencyMs)
 		time.Sleep(time.Duration(1) * time.Second)
 	}
 }
 
+// makeRequest sends requests to the server using an OTEL HTTP transport which will instrument the requests with traces.
 func makeRequest(ctx context.Context) {
+
 	demoServerAddr, ok := os.LookupEnv("DEMO_SERVER_ENDPOINT")
 	if !ok {
 		demoServerAddr = "http://0.0.0.0:7080/hello"

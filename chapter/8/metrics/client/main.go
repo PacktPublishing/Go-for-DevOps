@@ -28,9 +28,17 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Initializes an OTLP exporter, and configures the corresponding trace and
+// main sets up the trace and metrics providers and starts a loop to continuously call the server
+func main() {
+	shutdown := initTraceAndMetricsProvider()
+	defer shutdown()
+
+	continuouslySendRequests()
+}
+
+// initTraceAndMetricsProvider initializes an OTLP exporter, and configures the corresponding trace and
 // metric providers.
-func initProvider() func() {
+func initTraceAndMetricsProvider() func() {
 	ctx := context.Background()
 
 	otelAgentAddr, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
@@ -38,27 +46,20 @@ func initProvider() func() {
 		otelAgentAddr = "0.0.0.0:4317"
 	}
 
-	pusher := initMetricClient(ctx, otelAgentAddr)
-	err := pusher.Start(ctx)
-	handleErr(err, "Failed to start metric pusher")
-
-	traceExp := initTracer(ctx, otelAgentAddr)
-	handleErr(err, "Failed to create the collector trace exporter")
+	closeMetrics := initMetrics(ctx, otelAgentAddr)
+	closeTraces := initTracer(ctx, otelAgentAddr)
 
 	return func() {
-		cxt, cancel := context.WithTimeout(ctx, time.Second)
+		doneCtx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
-		if err := traceExp.Shutdown(cxt); err != nil {
-			otel.Handle(err)
-		}
 		// pushes any last exports to the receiver
-		if err := pusher.Stop(cxt); err != nil {
-			otel.Handle(err)
-		}
+		closeTraces(doneCtx)
+		closeMetrics(doneCtx)
 	}
 }
 
-func initTracer(ctx context.Context, otelAgentAddr string) *otlptrace.Exporter {
+// initTracer initializes an OTLP trace exporter and registers the trace provider with the global context
+func initTracer(ctx context.Context, otelAgentAddr string) func(context.Context) {
 	traceClient := otlptracegrpc.NewClient(
 		otlptracegrpc.WithInsecure(),
 		otlptracegrpc.WithEndpoint(otelAgentAddr),
@@ -88,10 +89,16 @@ func initTracer(ctx context.Context, otelAgentAddr string) *otlptrace.Exporter {
 	// set global propagator to tracecontext (the default is no-op).
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 	otel.SetTracerProvider(tracerProvider)
-	return traceExp
+
+	return func(doneCtx context.Context) {
+		if err := traceExp.Shutdown(doneCtx); err != nil {
+			otel.Handle(err)
+		}
+	}
 }
 
-func initMetricClient(ctx context.Context, otelAgentAddr string) *controller.Controller {
+// initMetrics initializes a metrics pusher and registers the metrics provider with the global context
+func initMetrics(ctx context.Context, otelAgentAddr string) func(context.Context) {
 	metricClient := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint(otelAgentAddr))
@@ -107,55 +114,38 @@ func initMetricClient(ctx context.Context, otelAgentAddr string) *controller.Con
 		controller.WithCollectPeriod(2*time.Second),
 	)
 	global.SetMeterProvider(pusher)
-	return pusher
+
+	err = pusher.Start(ctx)
+	handleErr(err, "Failed to start metric pusher")
+
+	return func(doneCtx context.Context) {
+		// pushes any last exports to the receiver
+		if err := pusher.Stop(doneCtx); err != nil {
+			otel.Handle(err)
+		}
+	}
 }
 
+// handleErr provides a simple way to handle errors and messages
 func handleErr(err error, message string) {
 	if err != nil {
 		log.Fatalf("%s: %v", message, err)
 	}
 }
 
-func main() {
-	shutdown := initProvider()
-	defer shutdown()
+// continuouslySendRequests continuously sends requests to the server and generates random lines of text to be measured
+func continuouslySendRequests() {
+	var (
+		tracer       = otel.Tracer("demo-client-tracer")
+		meter        = global.Meter("demo-client-meter")
+		instruments  = NewClientInstruments(meter)
+		commonLabels = []attribute.KeyValue{
+			attribute.String("method", "repl"),
+			attribute.String("client", "cli"),
+		}
+		rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	)
 
-	tracer := otel.Tracer("demo-client-tracer")
-	meter := global.Meter("demo-client-meter")
-
-	// labels represent additional key-value descriptors that can be bound to a
-	// metric observer or recorder.
-	commonLabels := []attribute.KeyValue{
-		attribute.String("method", "repl"),
-		attribute.String("client", "cli"),
-	}
-
-	// Recorder metric example
-	requestLatency := metric.Must(meter).
-		NewFloat64Histogram(
-			"demo_client/request_latency",
-			metric.WithDescription("The latency of requests processed"),
-		)
-
-	requestCount := metric.Must(meter).
-		NewInt64Counter(
-			"demo_client/request_counts",
-			metric.WithDescription("The number of requests processed"),
-		)
-
-	lineLengths := metric.Must(meter).
-		NewInt64Histogram(
-			"demo_client/line_lengths",
-			metric.WithDescription("The lengths of the various lines in"),
-		)
-
-	lineCounts := metric.Must(meter).
-		NewInt64Counter(
-			"demo_client/line_counts",
-			metric.WithDescription("The counts of the lines in"),
-		)
-
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for {
 		startTime := time.Now()
 		ctx, span := tracer.Start(context.Background(), "ExecuteRequest")
@@ -168,8 +158,8 @@ func main() {
 			meter.RecordBatch(
 				ctx,
 				commonLabels,
-				lineCounts.Measurement(1),
-				lineLengths.Measurement(randLineLength),
+				instruments.LineCounts.Measurement(1),
+				instruments.LineLengths.Measurement(randLineLength),
 			)
 			fmt.Printf("#%d: LineLength: %dBy\n", i, randLineLength)
 		}
@@ -177,8 +167,8 @@ func main() {
 		meter.RecordBatch(
 			ctx,
 			commonLabels,
-			requestLatency.Measurement(latencyMs),
-			requestCount.Measurement(1),
+			instruments.RequestLatency.Measurement(latencyMs),
+			instruments.RequestCount.Measurement(1),
 		)
 
 		fmt.Printf("Latency: %.3fms\n", latencyMs)
@@ -186,6 +176,7 @@ func main() {
 	}
 }
 
+// makeRequest sends requests to the server using an OTEL HTTP transport which will instrument the requests with traces.
 func makeRequest(ctx context.Context) {
 
 	demoServerAddr, ok := os.LookupEnv("DEMO_SERVER_ENDPOINT")
@@ -210,4 +201,38 @@ func makeRequest(ctx context.Context) {
 		panic(err)
 	}
 	res.Body.Close()
+}
+
+// ClientInstruments is a collection of instruments used to measure client requests to the server
+type ClientInstruments struct {
+	RequestLatency metric.Float64Histogram
+	RequestCount   metric.Int64Counter
+	LineLengths    metric.Int64Histogram
+	LineCounts     metric.Int64Counter
+}
+
+// NewClientInstruments takes a meter and builds a set of instruments to be used to measure client requests to the server.
+func NewClientInstruments(meter metric.Meter) ClientInstruments {
+	return ClientInstruments{
+		RequestLatency: metric.Must(meter).
+			NewFloat64Histogram(
+				"demo_client/request_latency",
+				metric.WithDescription("The latency of requests processed"),
+			),
+		RequestCount: metric.Must(meter).
+			NewInt64Counter(
+				"demo_client/request_counts",
+				metric.WithDescription("The number of requests processed"),
+			),
+		LineLengths: metric.Must(meter).
+			NewInt64Histogram(
+				"demo_client/line_lengths",
+				metric.WithDescription("The lengths of the various lines in"),
+			),
+		LineCounts: metric.Must(meter).
+			NewInt64Counter(
+				"demo_client/line_counts",
+				metric.WithDescription("The counts of the lines in"),
+			),
+	}
 }
