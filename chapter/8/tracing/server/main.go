@@ -23,10 +23,10 @@ import (
 
 var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-// main initializes metrics and tracing providers and listens to requests at /hello returning "Hello World!" with
+// main initializes tracing provider and listens to requests at /hello returning "Hello World!" with
 // randomized latency.
 func main() {
-	shutdown := initProvider()
+	shutdown := initTraceProvider()
 	defer shutdown()
 
 	// create a handler wrapped in OpenTelemetry instrumentation
@@ -67,8 +67,8 @@ func handleRequestWithRandomSleep() http.HandlerFunc {
 	}
 }
 
-// initTraceAndMetricsProvider initializes an OTLP exporter, and configures the corresponding trace provider.
-func initProvider() func() {
+// initTraceProvider initializes an OTLP exporter, and configures the corresponding trace provider.
+func initTraceProvider() func() {
 	ctx := context.Background()
 
 	otelAgentAddr, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")

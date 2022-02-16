@@ -22,16 +22,16 @@ import (
 	"google.golang.org/grpc"
 )
 
-// main sets up the trace and metrics providers and starts a loop to continuously call the server
+// main sets up the trace providers and starts a loop to continuously call the server
 func main() {
-	shutdown := initTraceAndMetricsProvider()
+	shutdown := initTraceProvider()
 	defer shutdown()
 
 	continuouslySendRequests()
 }
 
-// initTraceAndMetricsProvider initializes an OTLP exporter, and configures the corresponding trace provider.
-func initTraceAndMetricsProvider() func() {
+// initTraceProvider initializes an OTLP exporter, and configures the corresponding trace provider.
+func initTraceProvider() func() {
 	ctx := context.Background()
 
 	otelAgentAddr, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
