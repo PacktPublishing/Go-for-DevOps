@@ -24,16 +24,15 @@ services:
     depends_on:
       - jaeger-all-in-one
 
-  demo-client:
-    build:
-      dockerfile: ./client/demo/Dockerfile
-      context: ./petstore
-    environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
-    depends_on:
-      - demo-server
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
 
-  demo-server:
+  petstore:
     build:
       dockerfile: Dockerfile
       context: ./petstore
@@ -43,11 +42,24 @@ services:
       - "6742:6742"
     depends_on:
       - otel-collector
+      - prometheus
 
-  prometheus:
-    container_name: prometheus
-    image: prom/prometheus:latest
-    volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+  ops:
+    build:
+      dockerfile: Dockerfile
+      context: ./
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
     ports:
-      - "9090:9090"
+      - "7000:7000"
+    depends_on:
+      - petstore
+
+  petstore-client-demo:
+    build:
+      dockerfile: ./client/demo/Dockerfile
+      context: ./petstore
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+    depends_on:
+      - petstore

@@ -19,7 +19,7 @@ func main() {
 	names := strings.Split(namesFile, "\n")
 
 	time.Sleep(1 * time.Second)
-	c, err := client.New("demo-server:6742")
+	c, err := client.New("petstore:6742")
 	if err != nil {
 		panic(err)
 	}
