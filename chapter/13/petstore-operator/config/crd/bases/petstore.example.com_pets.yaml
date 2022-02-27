@@ -35,13 +35,33 @@ spec:
           spec:
             description: PetSpec defines the desired state of Pet
             properties:
-              foo:
-                description: Foo is an example field of Pet. Edit pet_types.go to
-                  remove/update
+              birthday:
+                description: Birthday is the date the pet was born
+                format: date-time
                 type: string
+              name:
+                description: Name is the name of the pet
+                type: string
+              type:
+                description: Type is the type of pet
+                enum:
+                - dog
+                - cat
+                - bird
+                - reptile
+                type: string
+            required:
+            - birthday
+            - name
+            - type
             type: object
           status:
             description: PetStatus defines the observed state of Pet
+            properties:
+              id:
+                description: ID is the unique identifier created by the service for
+                  the pet
+                type: string
             type: object
         type: object
     served: true
