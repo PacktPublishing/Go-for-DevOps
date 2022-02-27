@@ -1,0 +1,6 @@
+apiVersion: petstore.example.com/v1alpha1
+kind: Pet
+metadata:
+  name: pet-sample
+spec:
+  # TODO(user): Add fields here
