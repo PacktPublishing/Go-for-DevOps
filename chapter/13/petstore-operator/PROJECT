@@ -1,0 +1,9 @@
+domain: example.com
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: petstore-operator
+repo: github.com/Go-for-DevOps/chapter/13/petstore-operator
+version: "3"
