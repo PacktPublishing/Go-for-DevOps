@@ -8,6 +8,15 @@ TODO: fill in the walk through
   requests and responses, then exported for analysis in prometheus. To view the metrics in Prometheus, open http://localhost:9090/.
 - To see the request rate for the server see: http://localhost:9090/graph?g0.expr=rate(demo_server_request_counts%5B2m%5D)&g0.tab=0&g0.stacked=0&g0.show_exemplars=0&g0.range_input=1h
 
+If you see something like:
+```bash
+docker-compose up -d
+Traceback (most recent call last):
+  File "urllib3/connectionpool.py", line 670, in urlopen
+  File "urllib3/connectionpool.py", line 392, in _make_request
+```
+This indicates that you aren't running docker. Make sure you have docker installed and it is running.
+
 ## Tearing down this example
 - `docker-compose down`
 

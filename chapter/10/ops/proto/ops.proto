@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package ops;
+
+import "google/protobuf/duration.proto";
+import "jaeger/model/model.proto";
+
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto";
+
+// The request to get traces from Jaeger.
+message ListTracesReq {
+	// The name of the service to find traces for.
+	string service = 1;
+	// Filter the traces for this operation.
+	string operation = 2;
+	// Filter the traces for only traces with these all these tags.
+	repeated string tags = 3;
+	// Traces must start after the time in unix nanoseconds.
+	int64 start = 4;
+	// Traces must end before this time in unix nanoseconds.
+	int64 end = 5;
+	// The minimum duration of a matched trace.
+	int64 duration_min = 6;
+	// The maximum duration of a matched trace.
+	int64 duration_max = 7;
+	// The number of traces to return.
+	int32 search_depth = 8;
+}
+
+// This represents a trace identifier and when the trace started.
+message TraceItem {
+	// The trace identifier in hex form.
+	string id = 1;
+	// The time the trace started in unix nanosecods.
+	int64 start = 2;
+}	
+
+// A response to ListTraces().
+message ListTracesResp {
+	// A list of traces that met the search criteria.
+	repeated TraceItem traces = 1;
+}
+
+// The request to get a URL showing the trace information for a trace id.
+message ShowTraceReq {
+	// The ID of the trace in hex.
+	string id = 1;
+}
+
+// The resonse to ShowTrace().
+message ShowTraceResp {
+	// The URL to view the trace.
+	string id = 1;
+	// The name of the operations being performed.
+	repeated string operations = 2;
+	// A list of tag values in spans labelled "error".
+	repeated string errors = 3;
+	// A list of all tags in the spans.
+	repeated string tags = 4;
+	// The longest duration found in any span.
+	google.protobuf.Duration duration = 5;
+}
+
+message ShowLogsReq {
+	// The hex ID of the trace.
+	string id = 1;
+}
+
+message ShowLogsResp{
+	string id = 1;
+	repeated jaeger.api_v2.Log logs = 2;
+}
+
+enum SamplerType {
+	STUnknown = 0;
+	STNever = 1;
+	STAlways = 2;
+	STFloat = 3;
+}
+
+// Used to request we change the OTEL sampling.
+message ChangeSamplingReq {
+	// The type of sampling to change to.
+	SamplerType type = 1;
+
+	// This is the sampling rate if type == STFloat. Values must be
+	// > 0 and <= 1.0 .	
+	double float_value = 2;
+}
+
+// The response to a sampling change.
+message ChangeSamplingResp{}
+
+// The request to get the deployed version of the service.
+message DeployedVersionReq {}
+
+// The response to DeployedVersion().
+message DeployedVersionResp {
+	// The version running according to prometheus metrics.
+	string version = 1;
+}
+
+// Alert describes a Prometheus alert.
+message Alert {
+	// This is the current state of the alert.
+	string state = 1;
+	// This is the current value of the alert.
+	string value = 2;
+	// This is how long it has been active in unix nanoseconds.
+	int64 active_at = 3;
+}
+
+// This requests an set of active alerts in the system.
+message AlertsReq{
+	// Labels that the alert must match. Must have all labels. None indicates all alerts.
+	repeated string labels = 1;
+	// It must be an alert that is active since this time in unix nanoseconds. 0 indicates any alive alert.
+	int64 active_at = 2;
+	// It must have one of these states. None indicates all states.
+	repeated string states = 3;
+}
+
+// The response to Alerts().
+message AlertsResp{
+	// A list of alerts that matched the filter.
+	repeated Alert alerts = 1;
+}
+
+service Ops {
+	// ListTraces that the Jaeger has for our application.
+	rpc ListTraces(ListTracesReq) returns (ListTracesResp) {};
+	// ShowTrace returns the URL of a trace you ask for.
+	rpc ShowTrace(ShowTraceReq) returns (ShowTraceResp) {};
+	// ShowLogs extracts the logs from a trace.
+	rpc ShowLogs(ShowLogsReq) returns (ShowLogsResp) {};
+	// ChangeSampling changes the sampling the service is currently using for its traces.
+	rpc ChangeSampling(ChangeSamplingReq) returns (ChangeSamplingResp) {};
+	// DeployedVersion returns the currently deployed version of the application.
+	rpc DeployedVersion(DeployedVersionReq) returns (DeployedVersionResp) {};
+	// Alerts returns the currently firing alerts.
+	rpc Alerts(AlertsReq) returns (AlertsResp) {};
+}
