@@ -5,11 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PacktPublishing/Go-for-DevOps/chapter/10/petstore/internal/server/errors"
-
 	dpb "google.golang.org/genproto/googleapis/type/date"
 
-	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/10/petstore/proto"
+	"github.com/PacktPublishing/Go-for-DevOps/chapter/13/petstore-operator/client/internal/server/errors"
+	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/13/petstore-operator/client/proto"
 )
 
 // Data represents our data storage.

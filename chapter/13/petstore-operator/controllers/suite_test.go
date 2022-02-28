@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	petstorev1alpha1 "github.com/Go-for-DevOps/chapter/13/petstore-operator/api/v1alpha1"
+	petstorev1alpha1 "github.com/PacktPublishing/Go-for-DevOps/chapter/13/petstore-operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
