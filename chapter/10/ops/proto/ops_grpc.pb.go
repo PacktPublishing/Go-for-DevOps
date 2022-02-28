@@ -22,6 +22,8 @@ type OpsClient interface {
 	ListTraces(ctx context.Context, in *ListTracesReq, opts ...grpc.CallOption) (*ListTracesResp, error)
 	// ShowTrace returns the URL of a trace you ask for.
 	ShowTrace(ctx context.Context, in *ShowTraceReq, opts ...grpc.CallOption) (*ShowTraceResp, error)
+	// ShowLogs extracts the logs from a trace.
+	ShowLogs(ctx context.Context, in *ShowLogsReq, opts ...grpc.CallOption) (*ShowLogsResp, error)
 	// ChangeSampling changes the sampling the service is currently using for its traces.
 	ChangeSampling(ctx context.Context, in *ChangeSamplingReq, opts ...grpc.CallOption) (*ChangeSamplingResp, error)
 	// DeployedVersion returns the currently deployed version of the application.
@@ -50,6 +52,15 @@ func (c *opsClient) ListTraces(ctx context.Context, in *ListTracesReq, opts ...g
 func (c *opsClient) ShowTrace(ctx context.Context, in *ShowTraceReq, opts ...grpc.CallOption) (*ShowTraceResp, error) {
 	out := new(ShowTraceResp)
 	err := c.cc.Invoke(ctx, "/ops.Ops/ShowTrace", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *opsClient) ShowLogs(ctx context.Context, in *ShowLogsReq, opts ...grpc.CallOption) (*ShowLogsResp, error) {
+	out := new(ShowLogsResp)
+	err := c.cc.Invoke(ctx, "/ops.Ops/ShowLogs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +102,8 @@ type OpsServer interface {
 	ListTraces(context.Context, *ListTracesReq) (*ListTracesResp, error)
 	// ShowTrace returns the URL of a trace you ask for.
 	ShowTrace(context.Context, *ShowTraceReq) (*ShowTraceResp, error)
+	// ShowLogs extracts the logs from a trace.
+	ShowLogs(context.Context, *ShowLogsReq) (*ShowLogsResp, error)
 	// ChangeSampling changes the sampling the service is currently using for its traces.
 	ChangeSampling(context.Context, *ChangeSamplingReq) (*ChangeSamplingResp, error)
 	// DeployedVersion returns the currently deployed version of the application.
@@ -109,6 +122,9 @@ func (UnimplementedOpsServer) ListTraces(context.Context, *ListTracesReq) (*List
 }
 func (UnimplementedOpsServer) ShowTrace(context.Context, *ShowTraceReq) (*ShowTraceResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ShowTrace not implemented")
+}
+func (UnimplementedOpsServer) ShowLogs(context.Context, *ShowLogsReq) (*ShowLogsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ShowLogs not implemented")
 }
 func (UnimplementedOpsServer) ChangeSampling(context.Context, *ChangeSamplingReq) (*ChangeSamplingResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangeSampling not implemented")
@@ -164,6 +180,24 @@ func _Ops_ShowTrace_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(OpsServer).ShowTrace(ctx, req.(*ShowTraceReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ops_ShowLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShowLogsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OpsServer).ShowLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ops.Ops/ShowLogs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OpsServer).ShowLogs(ctx, req.(*ShowLogsReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -236,6 +270,10 @@ var Ops_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ShowTrace",
 			Handler:    _Ops_ShowTrace_Handler,
+		},
+		{
+			MethodName: "ShowLogs",
+			Handler:    _Ops_ShowLogs_Handler,
 		},
 		{
 			MethodName: "ChangeSampling",

@@ -5,7 +5,6 @@ import (
 	"log"
 	"os/exec"
 
-	//"sort"
 	"testing"
 	"time"
 

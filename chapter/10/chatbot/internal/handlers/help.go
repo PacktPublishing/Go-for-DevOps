@@ -50,4 +50,12 @@ Sampling types:
 			<float>: Must be > 0 and <= 1
 			Ex: change sampling float .1
 `,
+
+	"show logs": `
+show logs <trace id>
+Ex: show logs 17b4f65b0d9f038e2a7bc5ea84309af2
+
+show logs returns all logs contained in a Open Telemetry trace. 
+This command has no options.
+`,
 }

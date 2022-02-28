@@ -25,7 +25,7 @@ import "google/protobuf/duration.proto";
 // TODO: once this moves to jaeger-idl repo, we may want to change Go pkg to api_v2
 // and rewrite it to model only in this repo. That should make it easier to generate
 // classes in other languages.
-option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/internal/jaeger/client/proto/model";
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto/jaeger/model";
 option java_package = "io.jaegertracing.api_v2";
 
 // Enable gogoprotobuf extensions (https://github.com/gogo/protobuf/blob/master/extensions.md).

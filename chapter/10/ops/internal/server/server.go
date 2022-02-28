@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"sort"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto"
+	mpb "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto/jaeger/model"
 )
 
 // API implements our gRPC server's API.
@@ -109,6 +111,7 @@ func (a *API) Stop() {
 
 // ListTraces lists recent traces from Jaeger for the petstore service.
 func (a *API) ListTraces(ctx context.Context, req *pb.ListTracesReq) (*pb.ListTracesResp, error) {
+	log.Println("tags:", req.Tags)
 	params := jaeger.SearchParams{
 		Service:     "petstore",
 		Operation:   req.Operation,
@@ -153,6 +156,38 @@ func (a *API) ListTraces(ctx context.Context, req *pb.ListTracesReq) (*pb.ListTr
 		},
 	)
 	return resp, nil
+}
+
+func (a *API) ShowLogs(ctx context.Context, req *pb.ShowLogsReq) (*pb.ShowLogsResp, error) {
+	t, err := a.clients.Jaeger.Trace(ctx, req.Id)
+	if err != nil {
+		if err == jaeger.ErrNotFound {
+			return &pb.ShowLogsResp{}, nil
+		}
+		return nil, err
+	}
+
+	logs := []*mpb.Log{}
+	for _, span := range t.Spans {
+		logs = append(logs, span.Logs...)
+	}
+
+	/*
+		sort.SliceStable(
+			logs,
+			func(i, j int) bool {
+				if logs[i].Timestamp.AsTime().Before(logs[j].Timestamp.AsTime()) {
+					return true
+				}
+				return false
+			},
+		)
+	*/
+
+	return &pb.ShowLogsResp{
+		Id:   t.ID,
+		Logs: logs,
+	}, nil
 }
 
 func (a *API) ShowTrace(ctx context.Context, req *pb.ShowTraceReq) (*pb.ShowTraceResp, error) {

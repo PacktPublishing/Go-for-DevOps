@@ -153,6 +153,8 @@ func (e *Event) Add(k string, i interface{}) {
 		e.attrs = append(e.attrs, attribute.String(k, v))
 	case []string:
 		e.attrs = append(e.attrs, attribute.StringSlice(k, v))
+	case time.Duration:
+		e.attrs = append(e.attrs, attribute.String(k, v.String()))
 	default:
 		log.Printf("bug: event.Add(): receiveing %T which is not supported", v)
 	}

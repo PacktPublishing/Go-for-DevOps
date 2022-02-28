@@ -3,11 +3,13 @@ package client
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"google.golang.org/grpc"
 
 	pb "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto"
+	mpb "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto/jaeger/model"
 )
 
 // Ops is a client for interacting with the Ops service.
@@ -168,6 +170,49 @@ func (o *Ops) ShowTrace(ctx context.Context, id string) (*pb.ShowTraceResp, erro
 	}
 
 	return resp, nil
+}
+
+type Log struct {
+	Time  time.Time
+	Key   string
+	Value string
+}
+
+func (o *Ops) ShowLogs(ctx context.Context, id string) ([]Log, error) {
+	resp, err := o.client.ShowLogs(ctx, &pb.ShowLogsReq{Id: id})
+	if err != nil {
+		return nil, err
+	}
+	if resp.Id == "" {
+		return nil, fmt.Errorf("no trace with ID(%s) was found", id)
+	}
+	logs := make([]Log, 0, len(resp.Logs))
+	for _, l := range resp.Logs {
+		t := l.Timestamp.AsTime().UTC()
+		var v string
+		for _, f := range l.Fields {
+			switch f.VType {
+			case mpb.ValueType_BINARY:
+				v = string(f.VBinary)
+			case mpb.ValueType_BOOL:
+				if f.VBool {
+					v = "true"
+				} else {
+					v = "false"
+				}
+			case mpb.ValueType_FLOAT64:
+				v = strconv.FormatFloat(f.VFloat64, 'e', 2, 64)
+			case mpb.ValueType_INT64:
+				v = strconv.FormatInt(f.VInt64, 10)
+			case mpb.ValueType_STRING:
+				v = f.VStr
+			default:
+				v = fmt.Sprintf("unsupported type: %T", f.VType)
+			}
+			logs = append(logs, Log{Time: t, Key: f.Key, Value: v})
+		}
+	}
+	return logs, nil
 }
 
 // ChangeSampling is used to change the sampling rate of the service.

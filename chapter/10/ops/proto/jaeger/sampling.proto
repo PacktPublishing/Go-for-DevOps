@@ -20,7 +20,7 @@ package jaeger.api_v2;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
-option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/internal/jaeger/client/proto";
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto/jaeger";
 option java_package = "io.jaegertracing.api_v2";
 
 // Enable gogoprotobuf extensions (https://github.com/gogo/protobuf/blob/master/extensions.md).

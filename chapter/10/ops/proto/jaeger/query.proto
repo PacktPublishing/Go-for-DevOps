@@ -17,13 +17,13 @@ syntax="proto3";
 
 package jaeger.api_v2;
 
-import "model/model.proto";
+import "jaeger/model/model.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
-option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/internal/jaeger/client/proto";
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto/jaeger";
 option java_package = "io.jaegertracing.api_v2";
 
 // Enable gogoprotobuf extensions (https://github.com/gogo/protobuf/blob/master/extensions.md).

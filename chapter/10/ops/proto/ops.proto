@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package ops;
 
-// import "google/type/duration.proto";
 import "google/protobuf/duration.proto";
+import "jaeger/model/model.proto";
 
 option go_package = "github.com/PacktPublishing/Go-for-DevOps/chapter/10/ops/proto";
 
@@ -59,6 +59,16 @@ message ShowTraceResp {
 	repeated string tags = 4;
 	// The longest duration found in any span.
 	google.protobuf.Duration duration = 5;
+}
+
+message ShowLogsReq {
+	// The hex ID of the trace.
+	string id = 1;
+}
+
+message ShowLogsResp{
+	string id = 1;
+	repeated jaeger.api_v2.Log logs = 2;
 }
 
 enum SamplerType {
@@ -121,6 +131,8 @@ service Ops {
 	rpc ListTraces(ListTracesReq) returns (ListTracesResp) {};
 	// ShowTrace returns the URL of a trace you ask for.
 	rpc ShowTrace(ShowTraceReq) returns (ShowTraceResp) {};
+	// ShowLogs extracts the logs from a trace.
+	rpc ShowLogs(ShowLogsReq) returns (ShowLogsResp) {};
 	// ChangeSampling changes the sampling the service is currently using for its traces.
 	rpc ChangeSampling(ChangeSamplingReq) returns (ChangeSamplingResp) {};
 	// DeployedVersion returns the currently deployed version of the application.

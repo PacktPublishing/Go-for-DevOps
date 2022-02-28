@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"strconv"
@@ -43,6 +44,7 @@ func (o Ops) Register(b *bot.Bot) {
 	b.Register(regexp.MustCompile(`^\s*list traces`), o.ListTraces)
 	b.Register(regexp.MustCompile(`^\s*show trace`), o.ShowTrace)
 	b.Register(regexp.MustCompile(`^\s*change sampling`), o.ChangeSampling)
+	b.Register(regexp.MustCompile(`^\s*show logs`), o.ShowLogs)
 	b.Register(nil, o.lastResort)
 }
 
@@ -184,6 +186,37 @@ func (o Ops) ShowTrace(ctx context.Context, m bot.Message) {
 	b.WriteString("\n")
 
 	o.write(m, "%s,\nHere is the trace info you requested:\n\n%s", m.User.Name, b.String())
+}
+
+// ShowLogs outputs the logs given a trace ID.
+func (o Ops) ShowLogs(ctx context.Context, m bot.Message) {
+	sp := strings.Split(m.Text, "show logs")
+	if len(sp) != 2 {
+		o.write(m, `show logs command should be in form: show logs <id>`)
+		return
+	}
+	id := strings.TrimSpace(sp[1])
+	log.Println("show logs id==", id)
+	logs, err := o.OpsClient.ShowLogs(ctx, id)
+	if err != nil {
+		o.write(m, "Ops server had an error: %s", err)
+		return
+	}
+
+	b := strings.Builder{}
+	n := time.Now().UTC()
+	for _, l := range logs {
+		var t string
+		if l.Time.Year() == n.Year() && l.Time.Month() == n.Month() && l.Time.Day() == n.Day() {
+			t = l.Time.Format(`15:04:05`)
+
+		} else {
+			t = l.Time.Format(`a01/02/2006 15:04:05`)
+		}
+		b.WriteString(fmt.Sprintf("%s: %s: %s\n", t, l.Key, l.Value))
+	}
+
+	o.write(m, "%s,\nHere are the logs you requested for trace %s:\n\n%s", m.User.Name, id, b.String())
 }
 
 var sampleTypeRE = regexp.MustCompile(`^\s*(never|always|float)`)

@@ -372,7 +372,8 @@ func doTrace(ctx context.Context, name string, req proto.Message) (newCtx contex
 		if err != nil {
 			span.SetStatus(otelCodes.Error, err.Error())
 			span.SetAttributes(
-				attribute.String("error", err.Error()),
+				attribute.Bool("error", true),
+				attribute.String("errorMsg", err.Error()),
 			)
 			span.End()
 			return
