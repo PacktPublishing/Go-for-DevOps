@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package petstore;
+
+option go_package = "github.com/PacktPublishing/Go-for-DevOps/proto";
+
+import "google/type/date.proto";
+
+// Desribes the type of pets.
+enum PetType {
+	// The type was not set.
+	PTUnknown = 0;
+	// The pet is a canine.
+	PTCanine = 1;
+	// The pet is a feline.
+	PTFeline = 2;
+	// The pet is a bird.
+	PTBird = 3;
+	// The pet is a reptile.
+	PTReptile = 4;
+}
+
+// Represents a range of dates.
+message DateRange {
+	// When to start the range, this is inclusive.
+	google.type.Date start = 1;
+	// When to end the range, this is exclusive.
+	google.type.Date end = 2;
+}
+
+// Represents a unique pet.
+message Pet {
+	// A UUIDv4 for this pet. This can never be set on an AddPet().
+	string id = 1;
+	// The name of the pet.
+	string name = 2;
+	// The type of pet.
+	PetType type = 3;
+	// The pet's birthday.
+	google.type.Date birthday = 4;
+}
+
+// The request used to add a pets to the system.
+message AddPetsReq {
+	// The pet information to add. Pet.id must not be set.
+	repeated Pet pets = 1;
+}
+
+// The response do AddPets().
+message AddPetsResp {
+	// The IDs of the pets that were added.
+	repeated string ids = 1;
+}
+
+// The request used to update pets in the system.
+message UpdatePetsReq {
+	// The pet information to update. Pet.id must be set.
+	repeated Pet pets = 1;
+}
+
+// The response do UpdatePets().
+message UpdatePetsResp {}
+
+// Used to indicate which pets to delete. This is an all or nothing request.
+message DeletePetsReq {
+	// The IDs of the pets to delete.
+	repeated string ids = 1;
+}
+
+// The response to a DeletePet().
+message DeletePetsResp{}
+
+// The request to search for pets.
+message SearchPetsReq {
+	// Pet names to filter by.
+	repeated string names = 1;
+	// Pet types to filter by.
+	repeated PetType types = 2;
+	// Birthdays to filter by.
+	DateRange birthdate_range = 3;
+}
+
+// Types of OTEL sampling we support.
+enum SamplerType {
+	STUnknown = 0;
+	STNever = 1;
+	STAlways = 2;
+	STFloat = 3;
+}
+
+message Sampler {
+	// The type of sampling to change to.
+	SamplerType type = 1;
+
+	// This is the sampling rate if type == STFloat. Values must be
+	// > 0 and <= 1.0 .	
+	double float_value = 2;
+}
+
+// Used to request we change the OTEL sampling.
+message ChangeSamplerReq {
+	Sampler sampler = 1;
+}
+
+// The response to a sampling change.
+message ChangeSamplerResp{}
+
+service PetStore {
+	// Adds pets to the pet store.
+	rpc AddPets(AddPetsReq) returns (AddPetsResp) {};
+	// Updates pets entries in the store.
+	rpc UpdatePets(UpdatePetsReq) returns (UpdatePetsResp) {};
+	// Deletes pets from the pet store.
+	rpc DeletePets(DeletePetsReq) returns (DeletePetsResp) {};
+	// Finds pets in the pet store.
+	rpc SearchPets(SearchPetsReq) returns (stream Pet) {};
+
+
+	// These are for management. In real life I might break this into a new server that is
+	// serving on SSH so that it has to be auth'd and reachable only from in my network
+	// or only if auth'd by something.
+
+	// Changes the OTEL sampling type.
+	rpc ChangeSampler(ChangeSamplerReq) returns (ChangeSamplerResp) {};
+}

@@ -1,0 +1,47 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: petstore
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petstore-service
+  namespace: petstore
+spec:
+  selector:
+    app: petstore-service
+  ports:
+    - name: grpc
+      protocol: TCP
+      port: 6742
+      targetPort: 6742
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petstore-service
+  namespace: petstore
+  labels:
+    app: petstore-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petstore-service
+  template:
+    metadata:
+      labels:
+        app: petstore-service
+    spec:
+      containers:
+        - name: service
+          image: petstore:latest
+          command: [ "/go/bin/petstore" ]
+          args: [ "--localDebug" ]
+          ports:
+            - containerPort: 6742
+              hostPort: 6742
+              name: grpc
+
