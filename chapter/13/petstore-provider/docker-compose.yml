@@ -1,0 +1,10 @@
+version: '3.7'
+services:
+  petstore:
+    build:
+      context: ../../10/petstore/.
+    command:
+      - /go/bin/petstore
+      - --localDebug
+    ports:
+      - "6742:6742"
