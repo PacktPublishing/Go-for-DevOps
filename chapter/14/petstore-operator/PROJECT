@@ -1,0 +1,19 @@
+domain: example.com
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: petstore-operator
+repo: github.com/Go-for-DevOps/chapter/14/petstore-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: example.com
+  group: petstore
+  kind: Pet
+  path: github.com/Go-for-DevOps/chapter/14/petstore-operator/api/v1alpha1
+  version: v1alpha1
+version: "3"

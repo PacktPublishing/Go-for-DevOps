@@ -1,4 +1,0 @@
-## Append samples you want in your CSV to this file as resources ##
-resources:
-- petstore_v1alpha1_pet.yaml
-#+kubebuilder:scaffold:manifestskustomizesamples
