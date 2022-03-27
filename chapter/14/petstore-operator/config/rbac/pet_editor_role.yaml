@@ -1,0 +1,24 @@
+# permissions for end users to edit pets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pet-editor-role
+rules:
+- apiGroups:
+  - petstore.example.com
+  resources:
+  - pets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - petstore.example.com
+  resources:
+  - pets/status
+  verbs:
+  - get
