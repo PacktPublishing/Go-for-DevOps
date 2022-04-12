@@ -1,9 +1,26 @@
-FROM golang:1.17
-COPY . /usr/src/server
-WORKDIR /usr/src/server
-RUN go env -w GOPROXY=direct GO111MODULE=on
-RUN go mod init github.com/PacktPublishing/Go-for-DevOps/chapter/10
-RUN go mod tidy
-WORKDIR /usr/src/server/ops
-RUN go install
-CMD ["/go/bin/ops", "--jaegerAddr=jaeger-all-in-one:16685", "--promAddr=prometheus:9000", "--petstoreAddr=petstore:6742"]
+FROM golang:1.17 as builder
+WORKDIR /workspace
+
+# Run this with docker build --build_arg $(go env GOPROXY) to override the goproxy
+ARG goproxy=https://proxy.golang.org
+ENV GOPROXY=$goproxy
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# Cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+# Copy the sources
+COPY ./ ./
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -a -ldflags '-extldflags "-static"' \
+    -o tweeter .
+
+# Copy the action into a thin image
+FROM gcr.io/distroless/static:latest
+WORKDIR /
+COPY --from=builder /workspace/tweeter .
+ENTRYPOINT ["/tweeter"]

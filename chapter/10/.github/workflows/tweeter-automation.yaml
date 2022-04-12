@@ -1,0 +1,109 @@
+name: tweeter-automation
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  test:
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        go-version: [ 1.16.x, 1.17.x ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: install go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v2
+      - name: lint with golangci-lint
+        uses: golangci/golangci-lint-action@v2
+      - name: run go test
+        run: go test ./...
+  test-action:
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # TODO: when the repo is open sourced, remove the login and open the image to the public
+      - name: login to GitHub container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker pull ghcr.io/PacktPublishing/tweeter:1.0.0
+      - name: test the tweeter action in DRY_RUN
+        id: tweeterAction
+        env:
+          DRY_RUN: true
+        uses: ./
+        with:
+          message: hello world!
+          accessToken: fake
+          accessTokenSecret: fake
+          apiKey: fake
+          apiKeySecret: fake
+      - run: echo ${{ steps.tweeterAction.outputs.sentMessage }} from dry run test
+  release:
+    permissions:
+      contents: write
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set RELEASE_VERSION ENV var
+        run: echo "RELEASE_VERSION=${GITHUB_REF:10}" >> $GITHUB_ENV
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: install gox
+        run: go install github.com/mitchellh/gox@v1.0.1
+      - name: build cross-platform binaries
+        env:
+          PLATFORMS: darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64
+          VERSION_INJECT: github.com/PacktPublishing/Go-for-DevOps/chapter/10/pkg/tweeter.Version
+          OUTPUT_PATH_FORMAT: ./bin/${{ env.RELEASE_VERSION }}/{{.OS}}/{{.Arch}}/tweeter
+        run: |
+          gox -osarch="${PLATFORMS}" -ldflags "-X ${VERSION_INJECT}=${RELEASE_VERSION}" -output "${OUTPUT_PATH_FORMAT}"
+      - name: generate release notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST 'repos/{owner}/{repo}/releases/generate-notes' \
+            -F commitish=${{ env.RELEASE_VERSION }} \
+            -F tag_name=${{ env.RELEASE_VERSION }} \
+            > tmp-release-notes.json
+      - name: gzip the bins
+        env:
+          OUT_BASE: ./bin/${{ env.RELEASE_VERSION }}
+        run: |
+          tar -czvf "${OUT_BASE}/darwin/amd64/tweeter_darwin_amd64.tar.gz" -C "${OUT_BASE}/darwin/amd64" tweeter
+          tar -czvf "${OUT_BASE}/darwin/arm64/tweeter_darwin_arm64.tar.gz" -C "${OUT_BASE}/darwin/arm64" tweeter
+          tar -czvf "${OUT_BASE}/windows/amd64/tweeter_windows_amd64.tar.gz" -C "${OUT_BASE}/windows/amd64" tweeter.exe
+          tar -czvf "${OUT_BASE}/linux/amd64/tweeter_linux_amd64.tar.gz" -C "${OUT_BASE}/linux/amd64" tweeter
+          tar -czvf "${OUT_BASE}/linux/arm64/tweeter_linux_arm64.tar.gz" -C "${OUT_BASE}/linux/arm64" tweeter
+      - name: create release
+        env:
+          OUT_BASE: ./bin/${{ env.RELEASE_VERSION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jq -r .body tmp-release-notes.json > tmp-release-notes.md
+          gh release create ${{ env.RELEASE_VERSION }} \
+            -t "$(jq -r .name tmp-release-notes.json)" \
+            -F tmp-release-notes.md \
+            "${OUT_BASE}/darwin/amd64/tweeter_darwin_amd64.tar.gz#tweeter_osx_amd64" \
+            "${OUT_BASE}/darwin/arm64/tweeter_darwin_arm64.tar.gz#tweeter_osx_arm64" \
+            "${OUT_BASE}/windows/amd64/tweeter_windows_amd64.tar.gz#tweeter_windows_amd64" \
+            "${OUT_BASE}/linux/amd64/tweeter_linux_amd64.tar.gz#tweeter_linux_amd64" \
+            "${OUT_BASE}/linux/arm64/tweeter_linux_arm64.tar.gz#tweeter_linux_arm64"
