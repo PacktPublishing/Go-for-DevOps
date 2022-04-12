@@ -4,8 +4,8 @@
 # By setting variables old and new, this script can be run to update the name
 # of a chapter path for our imports.
 
-old="4"
-new="common_data_formats"
+old="chaos"
+new="16"
 myArray=("*.go" "go.mod" "DOCKERFILE" "Dockerfile" "Makefile" "*.yml" "*.yaml" "*.json")
 
 for name in ${myArray[@]}; do
