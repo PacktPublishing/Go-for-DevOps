@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 
@@ -24,10 +25,11 @@ func main() {
 	stack := factory.CreateVirtualMachineStack(context.Background(), "southcentralus")
 
 	var (
-		admin     = stack.VirtualMachine.Properties.OSProfile.AdminUsername
-		ipAddress = stack.PublicIP.Properties.IPAddress
+		admin           = stack.VirtualMachine.Properties.OSProfile.AdminUsername
+		ipAddress       = stack.PublicIP.Properties.IPAddress
+		sshIdentityPath = strings.TrimRight(sshPubKeyPath, ".pub")
 	)
-	fmt.Printf("Connect with: `ssh -i %s %s@%s`\n\n", sshPubKeyPath, *admin, *ipAddress)
+	fmt.Printf("Connect with: `ssh -i %s %s@%s`\n\n", sshIdentityPath, *admin, *ipAddress)
 	fmt.Println("Press enter to delete the infrastructure.")
 	reader := bufio.NewReader(os.Stdin)
 	_, _ = reader.ReadString('\n')

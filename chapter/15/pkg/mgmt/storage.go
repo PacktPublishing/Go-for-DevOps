@@ -26,7 +26,6 @@ type StorageStack struct {
 
 type StorageFactory struct {
 	subscriptionID string
-	sshPubKeyPath  string
 	cred           azcore.TokenCredential
 	groupsClient   *armresources.ResourceGroupsClient
 	storageClient  *armstorage.AccountsClient
@@ -46,7 +45,6 @@ func NewStorageFactory(subscriptionID string) *StorageFactory {
 func (sf *StorageFactory) CreateStorageStack(ctx context.Context, location string) *StorageStack {
 	stack := &StorageStack{
 		name: haiku.Haikunate(),
-		Cred: sf.cred,
 	}
 	stack.ResourceGroup = sf.createResourceGroup(ctx, stack.name, location)
 	stack.Account = sf.createStorageAccount(ctx, stack.name, location)

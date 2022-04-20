@@ -185,7 +185,7 @@ func (vmf *VirtualMachineFactory) getFirstNetworkInterface(ctx context.Context, 
 // getFirstNetworkInterface returns the first network interface on the vmStack Virtual Machine
 func (vmf *VirtualMachineFactory) getPublicIPAddress(ctx context.Context, vmStack *VirtualMachineStack) armnetwork.PublicIPAddress {
 	pipName := vmStack.NetworkInterface.Properties.IPConfigurations[0].Properties.PublicIPAddress.Name
-	fmt.Printf("Fetching the Public IP Address named %q connected to the VM...\n", pipName)
+	fmt.Printf("Fetching the Public IP Address named %q connected to the VM...\n", *pipName)
 	res := HandleErrWithResult(vmf.pipClient.Get(ctx, vmStack.name, *pipName, nil))
 	return res.PublicIPAddress
 }

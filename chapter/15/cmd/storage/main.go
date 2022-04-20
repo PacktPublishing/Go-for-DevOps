@@ -27,7 +27,7 @@ func main() {
 	stack := factory.CreateStorageStack(context.Background(), "southcentralus")
 
 	uploadBlobs(stack)
-	printSASAccessUris(stack)
+	printSASUris(stack)
 
 	fmt.Println("Press enter to delete the infrastructure.")
 	reader := bufio.NewReader(os.Stdin)
@@ -55,7 +55,7 @@ func uploadBlobs(stack *mgmt.StorageStack) {
 	}
 }
 
-func printSASAccessUris(stack *mgmt.StorageStack) {
+func printSASUris(stack *mgmt.StorageStack) {
 	serviceClient := stack.ServiceClient()
 	containerClient, err := serviceClient.NewContainerClient("jd-imgs")
 	HandleErr(err)
