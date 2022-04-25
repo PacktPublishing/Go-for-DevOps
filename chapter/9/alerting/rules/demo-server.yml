@@ -1,0 +1,10 @@
+groups:
+  - name: demo-server
+    rules:
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.5, rate(http_server_duration_bucket{exported_job="demo-server"}[5m])) > 200000
+        labels:
+          severity: page
+        annotations:
+          summary: High request latency

@@ -1,0 +1,16 @@
+route:
+  receiver: default
+  group_by: [ alertname ]
+  routes:
+    - match:
+        exported_job: demo-server
+      receiver: demo-server
+
+receivers:
+  - name: default
+    pagerduty_configs:
+      - service_key: "**Primary-Integration-Key**"
+
+  - name: demo-server
+    pagerduty_configs:
+      - service_key: "**Server-Team-Integration-Key**"
