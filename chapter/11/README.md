@@ -39,7 +39,9 @@ In the background, there is a demo client that is adding pets to the petstore an
 
 In another terminal, you can interact with the petstore by using the CLI application. This will let you add your own pets, delete pets, search for pets with a filter. That client can be found here: chapter/11/petstore/client/cli/petstore. You can find instructions on its use by running the following: 
 
-go run go run petstore.go --help 
+```bash
+go run petstore.go --help
+```
 
 
 ## Turndown the demo
