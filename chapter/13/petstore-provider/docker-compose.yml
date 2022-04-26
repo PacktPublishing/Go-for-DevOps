@@ -2,7 +2,7 @@ version: '3.7'
 services:
   petstore:
     build:
-      context: ../../10/petstore/.
+      context: ../../11/petstore/.
     command:
       - /go/bin/petstore
       - --localDebug
