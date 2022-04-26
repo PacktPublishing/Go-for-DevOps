@@ -37,7 +37,7 @@ go run chatbotops.go
 
 In the background, there is a demo client that is adding pets to the petstore and doing searches for pets (some searches will cause errors). The service is set to Float sampling, so not every call will generate a trace. 
 
-In another terminal, you can interact with the petstore by using the CLI application. This will let you add your own pets, delete pets, search for pets with a filter. That client can be found here: chapter/10/petstore/client/cli/petstore. You can find instructions on its use by running the following: 
+In another terminal, you can interact with the petstore by using the CLI application. This will let you add your own pets, delete pets, search for pets with a filter. That client can be found here: chapter/11/petstore/client/cli/petstore. You can find instructions on its use by running the following: 
 
 go run go run petstore.go --help 
 
