@@ -48,5 +48,5 @@ go run petstore.go --help
 
 This consists of:
 
-* Cancelling the running chtbotsops.go binary
+* Cancelling the running chatbot.go binary
 * Running `docker-compose down` in this directory
