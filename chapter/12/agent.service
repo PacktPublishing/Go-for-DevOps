@@ -1,0 +1,16 @@
+[Unit]
+Description=System agent for running software
+After=network.target
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+
+Restart=on-failure
+RestartSec=5s
+
+ExecStart=/home/agent/bin/agent
+
+[Install]
+WantedBy=multi-user.target
