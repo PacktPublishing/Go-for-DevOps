@@ -87,10 +87,11 @@ build {
   provisioner "shell" {
     inline = [
       "sudo mkdir /home/agent/bin",
+      "sudo chown agent:agent /home/agent/bin",
+      “sudo chmod ug+rwx /home/agent/bin”,
       "sudo mv /tmp/agent /home/agent/bin/agent",
       "sudo chown agent:agent /home/agent/bin/agent",
-      "sudo chown agent:agent /home/agent/bin",
-      "sudo chmod 0700 /home/agent/bin/agent",
+      "sudo chmod 0770 /home/agent/bin/agent",
     ]
   }
 
@@ -104,6 +105,7 @@ build {
       "sudo mv /tmp/agent.service /etc/systemd/system/agent.service",
       "sudo systemctl enable agent.service",
       "sudo systemctl daemon-reload",
+      "sudo systemctl start agent.service",
       "sleep 10",
       "sudo systemctl is-enabled agent.service",
     ]
@@ -136,8 +138,7 @@ build {
     tests = [
       "files/goss/goss.yaml",
       "files/goss/files.yaml",
-      "files/goss/goss.yaml",
-      "files/goss/packages.yaml",
+      "files/goss/dbus.yaml",
       "files/goss/process.yaml",
     ]
   }
