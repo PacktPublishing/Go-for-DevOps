@@ -197,7 +197,7 @@ func linuxVM(vmStack *VirtualMachineStack) armcompute.VirtualMachine {
 		Name:     to.Ptr(vmStack.name + "-vm"),
 		Properties: &armcompute.VirtualMachineProperties{
 			HardwareProfile: &armcompute.HardwareProfile{
-				VMSize: to.Ptr(armcompute.VirtualMachineSizeTypesStandardD3V2),
+				VMSize: to.Ptr(armcompute.VirtualMachineSizeTypesStandardD2SV3),
 			},
 			NetworkProfile: networkProfile(vmStack),
 			OSProfile:      linuxOSProfile(vmStack),
