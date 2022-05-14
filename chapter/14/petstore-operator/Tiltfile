@@ -1,7 +1,7 @@
 # build and deploy the petstore service the controller will use to store pets
 k8s_yaml("./config/petstore-service/service.yaml")
 # build and push the petstore service image to the local registry
-docker_build("petstore:latest", "../../10/petstore/.")
+docker_build("petstore:latest", "../../11/petstore/.")
 
 # generate the controller manifest and deploy to the cluster
 k8s_yaml(kustomize("./config/default"))
