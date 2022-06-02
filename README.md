@@ -1,8 +1,8 @@
-# Early Access
+# Go for DevOps
 
-<a href="https://www.packtpub.com/product/go-for-devops/9781801818896?utm_source=github&utm_medium=repository&utm_campaign=9781801818896"><img src="https://static.packt-cdn.com/products/9781801818896/cover/smaller" alt="Early Access" height="256px" align="right"></a>
+<a href="https://www.packtpub.com/product/go-for-devops/9781801818896?utm_source=github&utm_medium=repository&utm_campaign=9781801818896"><img src="https://static.packt-cdn.com/products/9781801818896/cover/smaller" alt="Go for DevOps" height="256px" align="right"></a>
 
-This is the code repository for [Early Access](https://www.packtpub.com/product/go-for-devops/9781801818896?utm_source=github&utm_medium=repository&utm_campaign=9781801818896), published by Packt.
+This is the code repository for [Go for DevOps](https://www.packtpub.com/product/go-for-devops/9781801818896?utm_source=github&utm_medium=repository&utm_campaign=9781801818896), published by Packt.
 
 **Learn how to use the Go language to automate servers, the cloud, Kubernetes, GitHub, Packer, and Terraform**
 
@@ -41,25 +41,25 @@ This book is for Ops and DevOps engineers who would like to use Go to develop th
 
 With the following software and hardware list you can run all code files present in the book (Chapter 1-16).
 ### Software and Hardware List
-| Chapter | Software required | OS required |
+| Chapter  | Software required | OS required |
 | -------- | ------------------------------------ | ----------------------------------- |
-| 1-16 | Go 1.18 | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | Packer | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | Terraform | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | Kubernetes | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | Docker | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | Tilt | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | Protocol Buffers | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | gPRC | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | But CLI, Azure CLI, KinD | Windows, Mac OS X, and Linux (Any) |
-| 1-16 | Operator SDK, ctlptl | Windows, Mac OS X, and Linux (Any) |
-
+| 1-16     | Go 1.18           | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Packer            | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Terraform         | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Kubernetes        | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Docker            | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Tilt              | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Protocol Buffers  | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | gPRC,ctlptl       | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | But CLI           | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Operator SDK      | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Azure CLI, KinD   | Windows, Mac OS X, and Linux (Any) |
 We also provide a PDF file that has color images of the screenshots/diagrams used in this book. [Click here to download it](https://static.packt-cdn.com/downloads/9781801818896_ColorImages.pdf).
 
 ### Related products
-* Implementing CI [[Packt]](https://www.packtpub.com/product/learning-devops-second-edition/9781801818964?utm_source=github&utm_medium=repository&utm_campaign=9781801818964) [[Amazon]](https://www.amazon.com/dp/1801818967)
+* Learning DevOps - Second Edition [[Packt]](https://www.packtpub.com/product/learning-devops-second-edition/9781801818964?utm_source=github&utm_medium=repository&utm_campaign=9781801818964) [[Amazon]](https://www.amazon.com/dp/1801818967)
 
-* Early Access [[Packt]](https://www.packtpub.com/product/the-devops-career-handbook/9781803230948?utm_source=github&utm_medium=repository&utm_campaign=9781803230948) [[Amazon]](https://www.amazon.com/dp/1803230940)
+* The DevOps Career Handbook [[Packt]](https://www.packtpub.com/product/the-devops-career-handbook/9781803230948?utm_source=github&utm_medium=repository&utm_campaign=9781803230948) [[Amazon]](https://www.amazon.com/dp/1803230940)
 
 ## Get to Know the Author
 **John Doak**
@@ -67,4 +67,3 @@ is the principal manager of Layer 1 Reliability Engineering at Microsoft. John l
 
 **David Justice**
 is the principal software engineer lead for the Azure K8s infrastructure and Steel Thread teams, which maintain a variety of CNCF and Bytecode Alliance projects. He is a maintainer of the Cluster API Provider Azure and a contributor to the Cluster API. Prior to that, David was the technical assistant to the Azure CTO, where he was responsible for Azure cross-group technical strategy and architecture. Early on at Microsoft, he was a program manager leading Azure SDKs and CLIs, where he transitioned all Azure services to describe them using OpenAPI specifications in GitHub and established automations to generate Azure reference docs, SDKs, and CLIs. Prior to working at Microsoft, David was the CTO of a mobile CI/CD SaaS called CISimple.
-
