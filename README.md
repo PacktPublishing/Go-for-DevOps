@@ -54,6 +54,7 @@ With the following software and hardware list you can run all code files present
 | 1-16     | But CLI           | Windows, Mac OS X, and Linux (Any) |
 | 1-16     | Operator SDK      | Windows, Mac OS X, and Linux (Any) |
 | 1-16     | Azure CLI, KinD   | Windows, Mac OS X, and Linux (Any) |
+
 We also provide a PDF file that has color images of the screenshots/diagrams used in this book. [Click here to download it](https://static.packt-cdn.com/downloads/9781801818896_ColorImages.pdf).
 
 ### Related products
