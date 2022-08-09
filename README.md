@@ -51,7 +51,7 @@ With the following software and hardware list you can run all code files present
 | 1-16     | Tilt              | Windows, Mac OS X, and Linux (Any) |
 | 1-16     | Protocol Buffers  | Windows, Mac OS X, and Linux (Any) |
 | 1-16     | gPRC,ctlptl       | Windows, Mac OS X, and Linux (Any) |
-| 1-16     | But CLI           | Windows, Mac OS X, and Linux (Any) |
+| 1-16     | Buf CLI           | Windows, Mac OS X, and Linux (Any) |
 | 1-16     | Operator SDK      | Windows, Mac OS X, and Linux (Any) |
 | 1-16     | Azure CLI, KinD   | Windows, Mac OS X, and Linux (Any) |
 
