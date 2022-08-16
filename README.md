@@ -62,6 +62,9 @@ We also provide a PDF file that has color images of the screenshots/diagrams use
 
 * The DevOps Career Handbook [[Packt]](https://www.packtpub.com/product/the-devops-career-handbook/9781803230948?utm_source=github&utm_medium=repository&utm_campaign=9781803230948) [[Amazon]](https://www.amazon.com/dp/1803230940)
 
+## Errata
+ * Page xxi (Under to get the most out of this book): **gPRC(https://grpc.io)** _should be_ **gRPC(https://grpc.io)**
+
 ## Get to Know the Authors
 **John Doak**
 is the principal manager of Layer 1 Reliability Engineering at Microsoft. John led the development of the Azure Data Explorer and Microsoft Authentication Library Go SDKs. Previously, he was a Staff Site Reliability Engineer at Google. As part of network engineering, he created many of their first network automation systems. John led the migration of that group from Python to Go, developing Go training classes that have been taught around the world. He was a pivotal figure in transforming the network team to a network/systems group that integrated with SRE. Prior to that, he worked for Lucasfilm in video games and film. You can find his musings on Go/SRE topics and his Go classes on the web.
