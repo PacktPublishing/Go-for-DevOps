@@ -64,6 +64,7 @@ We also provide a PDF file that has color images of the screenshots/diagrams use
 
 ## Errata
  * Page xxi (Under to get the most out of this book): **gPRC(https://grpc.io)** _should be_ **gRPC(https://grpc.io)**
+ * Chapter 1, Type assertion, in the switch statement, all of the fmt.Printf("...", i) should be fmt.Printf("...", v)
 
 ## Get to Know the Authors
 **John Doak**
