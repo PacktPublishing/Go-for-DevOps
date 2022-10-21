@@ -71,3 +71,7 @@ is the principal manager of Layer 1 Reliability Engineering at Microsoft. John l
 
 **David Justice**
 is the principal software engineer lead for the Azure K8s infrastructure and Steel Thread teams, which maintain a variety of CNCF and Bytecode Alliance projects. He is a maintainer of the Cluster API Provider Azure and a contributor to the Cluster API. Prior to that, David was the technical assistant to the Azure CTO, where he was responsible for Azure cross-group technical strategy and architecture. Early on at Microsoft, he was a program manager leading Azure SDKs and CLIs, where he transitioned all Azure services to describe them using OpenAPI specifications in GitHub and established automations to generate Azure reference docs, SDKs, and CLIs. Prior to working at Microsoft, David was the CTO of a mobile CI/CD SaaS called CISimple.
+### Download a free PDF
+
+ <i>If you have already purchased a print or Kindle version of this book, you can get a DRM-free PDF version at no cost.<br>Simply click on the link to claim your free PDF.</i>
+<p align="center"> <a href="https://packt.link/free-ebook/9781801818896">https://packt.link/free-ebook/9781801818896 </a> </p>
