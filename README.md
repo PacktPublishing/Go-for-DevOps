@@ -76,10 +76,13 @@ We also provide a PDF file that has color images of the screenshots/diagrams use
 
 ## Errata
  * Page xxi (Under to get the most out of this book): **gPRC(https://grpc.io)** _should be_ **gRPC(https://grpc.io)**
- * Page 29 (Under Returning multiple values and named results): **func divide(num, div int) (res, rem int) { result = num / div remainder = num % div return res, rem }** _should be_ **func divide(num, div int) (res, rem int) {
-  res = num / div
-  rem = num % div
-  return res, rem
+ * Page 29 (Under Returning multiple values and named results): **func divide(num, div int) (res, rem int) { 
+ * result = num / div 
+ * remainder = num % div 
+ * return res, rem }** _should be_ **func divide(num, div int) (res, rem int) { 
+ * res = num / div
+ * rem = num % div
+ * return res, rem
 }**
 
 ## Get to Know the Authors
