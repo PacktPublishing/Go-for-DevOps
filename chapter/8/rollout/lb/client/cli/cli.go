@@ -75,7 +75,7 @@ func main() {
 			Port:    int32(*port),
 			URLPath: *urlPath,
 		}
-		if err := c.AddBackend(ctx, *pattern, b); err != nil {
+		if err := c.RemoveBackend(ctx, *pattern, b); err != nil {
 			panic(err)
 		}
 	case "poolHealth":
