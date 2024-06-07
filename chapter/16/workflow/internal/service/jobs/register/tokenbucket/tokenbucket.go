@@ -3,9 +3,12 @@ Package tokenbucket registers a job that is used to fetch a token from a token b
 
 Register name: "tokenBucket"
 Args:
+
 	"bucket"(mandatory): The name of the bucket
 	"fatal"(mandatory): true if a failure should cause a fatal error, false if it should block until it gets one
+
 Result:
+
 	If the site is not in decom, will return a fatal error.
 */
 package tokenbucket
@@ -59,7 +62,7 @@ func (a *args) validate(args map[string]string) error {
 			case "true":
 				a.fatal = true
 			case "false":
-				a.fatal = true
+				a.fatal = false
 			default:
 				return fmt.Errorf("arg(fatal) was not true or false, was %q", v)
 			}
