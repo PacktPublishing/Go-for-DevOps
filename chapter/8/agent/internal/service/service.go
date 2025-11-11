@@ -151,6 +151,7 @@ func (a *Agent) unlock(name string, del bool) {
 	a.mu.Lock()
 	v, ok := a.locks[name]
 	if !ok {
+		a.mu.Unlock()
 		return
 	}
 	if del {
